@@ -16,13 +16,13 @@ class appbartransactionpage extends StatelessWidget implements PreferredSizeWidg
       scrolledUnderElevation: 0,
       backgroundColor: Colors.white,
       elevation: 0,
-      leading: IconButton(
-        icon: Icon(Icons.arrow_back_ios, color: colorConst.primaryColor1),
-        onPressed: () {
+      leading: InkWell(
+        onTap: () {
           Navigator.pop(context);
         },
-
+        child: Icon(Icons.arrow_back_ios, color: colorConst.primaryColor1),
       ),
+      automaticallyImplyLeading: false,
       title: Text(
 
         "Transaction History",

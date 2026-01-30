@@ -22,16 +22,16 @@ class BannersResponse {
 
 class Banner {
   final int id;
-  final String image;
-  final String uploadedAt;
+  final String image; // Full URL from API
+  final String? uploadedAt; // Can be null
 
-  Banner({required this.id, required this.image, required this.uploadedAt});
+  Banner({required this.id, required this.image, this.uploadedAt});
 
   factory Banner.fromJson(Map<String, dynamic> json) {
     return Banner(
       id: json['id'] ?? 0,
-      image: json['image'] ?? '',
-      uploadedAt: json['uploaded_at'] ?? '',
+      image: json['image'] ?? '', // API returns full URL
+      uploadedAt: json['uploaded_at'],
     );
   }
 }

@@ -10,3 +10,7 @@ abstract class UserEvent extends Equatable {
 class FetchUserDetailsEvent extends UserEvent {
   const FetchUserDetailsEvent();
 }
+
+class RefreshBalanceOnlyEvent extends UserEvent {
+  const RefreshBalanceOnlyEvent();
+}

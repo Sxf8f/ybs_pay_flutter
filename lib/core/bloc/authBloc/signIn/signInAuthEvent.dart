@@ -17,3 +17,13 @@ class LoginRequested extends signInAuthEvent {
   @override
   List<Object> get props => [username, password];
 }
+
+class VerifyOtpRequested extends signInAuthEvent {
+  final String username;
+  final String otp;
+
+  VerifyOtpRequested({required this.username, required this.otp});
+
+  @override
+  List<Object> get props => [username, otp];
+}

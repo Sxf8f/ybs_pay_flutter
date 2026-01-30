@@ -1,28 +1,53 @@
 class UserModel {
   final int userId;
   final String username;
+  final String? name;
+  final String? email;
+  final String? phone;
   final int roleId;
   final String roleName;
   final String accessToken;
   final String refreshToken;
+  final String? loginUserId;
+  final String? loginType;
 
   UserModel({
     required this.userId,
     required this.username,
+    this.name,
+    this.email,
+    this.phone,
     required this.roleId,
     required this.roleName,
     required this.accessToken,
     required this.refreshToken,
+    this.loginUserId,
+    this.loginType,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    // Helper function to safely convert to int
+    int _toInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      if (value is String) {
+        return int.tryParse(value) ?? defaultValue;
+      }
+      return defaultValue;
+    }
+
     return UserModel(
-      userId: json['user_id'] ?? '',
-      username: json['username'] ?? '',
-      roleId: json['role_id'] ?? '',
+      userId: _toInt(json['user_id'], 0),
+      username: json['username'] ?? json['login_user_id'] ?? '',
+      name: json['name'],
+      email: json['email'],
+      phone: json['phone'],
+      roleId: _toInt(json['role_id'], 0),
       roleName: json['role_name'] ?? '',
       accessToken: json['access'] ?? '',
       refreshToken: json['refresh'] ?? '',
+      loginUserId: json['login_user_id'],
+      loginType: json['login_type'],
     );
   }
 }
@@ -47,6 +72,10 @@ class LayoutModel {
   final bool isActive;
   final String? icon;
   final String? lastUpdated;
+  final String? billFetchMode;
+  final bool? requireBillFetchFirst;
+  final bool? amountEditableAfterFetch;
+  final Map<String, dynamic>? operatorValidations;
 
   LayoutModel({
     this.amount,
@@ -68,6 +97,10 @@ class LayoutModel {
     required this.isActive,
     this.icon,
     this.lastUpdated,
+    this.billFetchMode,
+    this.requireBillFetchFirst,
+    this.amountEditableAfterFetch,
+    this.operatorValidations,
   });
 
   factory LayoutModel.fromJson(Map<String, dynamic> json) {
@@ -101,20 +134,35 @@ class LayoutModel {
       isActive: json['is_active'] ?? false,
       icon: json['icon'],
       lastUpdated: json['last_updated'],
+      billFetchMode: json['bill_fetch_mode'],
+      requireBillFetchFirst: json['require_bill_fetch_first'],
+      amountEditableAfterFetch: json['amount_editable_after_fetch'],
+      operatorValidations: json['operator_validations'] != null
+          ? Map<String, dynamic>.from(json['operator_validations'])
+          : null,
     );
   }
 }
 
 class Amount {
   final bool enabled;
-  final bool editable;
+  final bool editable; // Deprecated - kept for backward compatibility
+  final bool? editableAfterFetch; // Whether editable AFTER bill fetch
+  final bool? initialEditable; // Whether editable initially (should always be true)
 
-  Amount({required this.enabled, required this.editable});
+  Amount({
+    required this.enabled,
+    required this.editable,
+    this.editableAfterFetch,
+    this.initialEditable,
+  });
 
   factory Amount.fromJson(Map<String, dynamic> json) {
     return Amount(
       enabled: json['enabled'] ?? false,
-      editable: json['editable'] ?? false,
+      editable: json['editable'] ?? json['editable_after_fetch'] ?? true, // Backward compatibility
+      editableAfterFetch: json['editable_after_fetch'],
+      initialEditable: json['initial_editable'] ?? true,
     );
   }
 }

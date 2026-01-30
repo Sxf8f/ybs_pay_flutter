@@ -1,18 +1,34 @@
 /// Constants for asset paths used in the application.
 class AssetsConst {
   AssetsConst._(); // Private constructor to prevent instantiation.
-  
+
   /// Path to the base url starting.
 
+    static const String apiBase = 'http://192.168.1.7:8001/';
 
-  static const String apiBase = 'http://192.168.31.101:8001/';
+  // static const String apiBase = 'http://192.168.1.48:8001/';
 
-//   static const String apiBase = 'http://192.168.1.41:8001/';
+  // static const String apiBase = 'http://inst.apihub.co.in/';
 
-  // static const String apiBase = 'http://api.ssalpy.com/';
+//   static const String apiBase = 'https://trvpay.com/';
 
+  /// Helper method to build API URLs correctly, avoiding double slashes
+  /// Usage: AssetsConst.buildApiUrl('api/android/banners/')
+  static String buildApiUrl(String endpoint) {
+    // Remove leading slash from endpoint if present
+    final cleanEndpoint = endpoint.startsWith('/')
+        ? endpoint.substring(1)
+        : endpoint;
 
- /// Path to the app logo.
+    // Ensure base URL ends with slash
+    final base = apiBase.endsWith('/') ? apiBase : '$apiBase/';
+
+    // Combine and remove any double slashes
+    final url = '$base$cleanEndpoint';
+    return url.replaceAll(RegExp(r'/+'), '/').replaceAll(':/', '://');
+  }
+
+  /// Path to the app logo.
   static const String logo = 'assets/img/logo.png';
 
   /// Path to the social icons asset.
@@ -50,12 +66,23 @@ class AssetsConst {
   static const String masterCardLogo = 'assets/img/others/mastercard_logo.png';
   static const String googlePayLogo = 'assets/img/others/google_pay_logo.png';
   static const String applePayLogo = 'assets/img/others/apple_pay_logo.png';
+  // UPI App logos
+  static const String googlePayLogoUPI =
+      'assets/images/upi/google_pay_logo.png';
+  static const String UPILogo =
+      'assets/images/upi/upiicon.png';
+  static const String phonePeLogo = 'assets/images/upi/phonepe_logo.png';
+  static const String paytmLogo = 'assets/images/upi/paytm_logo.png';
+  static const String bhimLogo = 'assets/images/upi/bhim_logo.png';
+  static const String upiLogo = 'assets/images/upi/upilogo.png';
+  static const String debitCardLogo = 'assets/images/upi/debitcard.png';
 
   /// Path to the animations asset.
-  static const String successLottie = 'assets/gifs/Animation - 1711377831660.json';
+  static const String successLottie =
+      'assets/gifs/Animation - 1711377831660.json';
 
   /// Path to the home sliders asset.
-  static const String  slider1 = 'assets/images/sliders/slide.jpg';
+  static const String slider1 = 'assets/images/sliders/slide.jpg';
   static const String slider2 = 'assets/images/sliders/slide_2.jpg';
   static const String slider3 = 'assets/images/sliders/slide_3.jpg';
   static const String slider4 = 'assets/images/sliders/slide_4.jpg';
@@ -103,5 +130,4 @@ class AssetsConst {
 
   /// Path to the others asset.
   static const String location = 'assets/img/others/location.svg';
-
 }

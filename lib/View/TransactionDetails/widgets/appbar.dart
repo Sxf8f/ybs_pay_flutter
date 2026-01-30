@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../../main.dart';
 
 class appBarForTransactionPage extends StatelessWidget
     implements PreferredSizeWidget {
@@ -14,49 +16,71 @@ class appBarForTransactionPage extends StatelessWidget
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
   @override
   Widget build(BuildContext context) {
+    Color statusColor;
+    IconData statusIcon;
+    
+    if (providersatus == 'FAILED') {
+      statusColor = Colors.red;
+      statusIcon = Icons.dangerous;
+    } else if (providersatus == 'SUCCESS') {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle;
+    } else {
+      statusColor = Colors.orange;
+      statusIcon = Icons.pending;
+    }
+
     return AppBar(
+      scrolledUnderElevation: 0,
       backgroundColor: Colors.white,
-      leading: IconButton(
-        onPressed: () {
+      elevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      leading: InkWell(
+        onTap: () {
           Navigator.pop(context);
         },
-        icon: const Icon(Icons.close),
+        child: Icon(Icons.arrow_back_ios, color: Colors.black),
       ),
+      automaticallyImplyLeading: false,
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Trans ID : $providertransid",
-            style: const TextStyle(
-              color: Colors.black,
+            "Trans ID: $providertransid",
+            style: TextStyle(
+              color: Colors.grey[600],
               fontSize: 10,
               fontWeight: FontWeight.bold,
             ),
           ),
-          Text(
-            providersatus,
-            style: TextStyle(
-              color: providersatus == 'FAILED'
-                  ? Colors.red
-                  : providersatus == 'SUCCESS'
-                  ? Colors.green
-                  : Colors.orange,
-              fontSize: 10,
+          const SizedBox(height: 2),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              providersatus.toUpperCase(),
+              style: TextStyle(
+                color: statusColor,
+                fontSize: scrWidth * 0.025,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
       ),
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 10),
+          padding: const EdgeInsets.only(right: 16),
           child: Icon(
-            providersatus == 'FAILED'
-                ? Icons.dangerous
-                : providersatus == 'PENDING'
-                ? Icons.pending
-                : Icons.check_circle,
-            color: Colors.green,
-            size: 30,
+            statusIcon,
+            color: statusColor,
+            size: 24,
           ),
         ),
       ],

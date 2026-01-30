@@ -17,7 +17,8 @@ class appBarInEnterAmountScreen extends StatelessWidget implements PreferredSize
           onTap: () {
             Navigator.pop(context);
           },
-          child: Icon(Icons.close)),
+          child: Icon(Icons.arrow_back_ios)),
+      automaticallyImplyLeading: false,
       iconTheme: IconThemeData(
         color: Colors.black,
       ),

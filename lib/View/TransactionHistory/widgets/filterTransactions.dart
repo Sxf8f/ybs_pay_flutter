@@ -133,6 +133,26 @@ class _PaddingState extends State<TabsClass> {
                                         selectedFromDate ?? DateTime.now(),
                                     firstDate: DateTime(2000),
                                     lastDate: DateTime(2100),
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          dialogBackgroundColor: Colors.white,
+                                          colorScheme: ColorScheme.light(
+                                            primary: colorConst.primaryColor1,
+                                            onPrimary: Colors.white,
+                                            onSurface: Colors.black,
+                                            surface: Colors.white,
+                                          ),
+                                          textButtonTheme: TextButtonThemeData(
+                                            style: TextButton.styleFrom(
+                                              foregroundColor:
+                                                  colorConst.primaryColor1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
                                   );
                                   if (picked != null) {
                                     setModalState(() {
@@ -170,6 +190,26 @@ class _PaddingState extends State<TabsClass> {
                                         selectedToDate ?? DateTime.now(),
                                     firstDate: DateTime(2000),
                                     lastDate: DateTime(2100),
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          dialogBackgroundColor: Colors.white,
+                                          colorScheme: ColorScheme.light(
+                                            primary: colorConst.primaryColor1,
+                                            onPrimary: Colors.white,
+                                            onSurface: Colors.black,
+                                            surface: Colors.white,
+                                          ),
+                                          textButtonTheme: TextButtonThemeData(
+                                            style: TextButton.styleFrom(
+                                              foregroundColor:
+                                                  colorConst.primaryColor1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
                                   );
                                   if (picked != null) {
                                     setModalState(() {

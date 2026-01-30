@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ybs_pay/core/const/assets_const.dart';
+import 'package:ybs_pay/core/const/color_const.dart';
+import '../../../main.dart';
 
 class TransactionInfoWidget extends StatelessWidget {
   final providerImage;
@@ -9,6 +11,7 @@ class TransactionInfoWidget extends StatelessWidget {
   final providerstatus;
   final providermobilenum;
   final provideroperator;
+  final providerliveid;
 
   const TransactionInfoWidget({
     super.key,
@@ -19,6 +22,7 @@ class TransactionInfoWidget extends StatelessWidget {
     required this.providerstatus,
     required this.providermobilenum,
     required this.provideroperator,
+    required this.providerliveid,
   });
 
   @override
@@ -27,42 +31,45 @@ class TransactionInfoWidget extends StatelessWidget {
       children: [
         const Divider(),
         const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(left: 20),
-              child: Text(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
                 "Transaction Details",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: Text(
-                providerrate,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: scrWidth * 0.035,
+                  color: Colors.grey[800],
                 ),
               ),
-            ),
-          ],
+              Text(
+                providerrate,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: scrWidth * 0.038,
+                  color: colorConst.primaryColor1,
+                ),
+              ),
+            ],
+          ),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 20, top: 20),
+          padding: const EdgeInsets.only(left: 16, top: 20, right: 16),
           child: Row(
             children: [
               Container(
-                height: 60,
-                width: 60,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300),
-                  color: Colors.white,
+                  color: Colors.grey[200],
                 ),
                 child: providerImage.isNotEmpty
-                    ? ClipOval(
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
                         child: Image.network(
                           "${AssetsConst.apiBase}${providerImage}",
                           fit: BoxFit.cover,
@@ -70,7 +77,7 @@ class TransactionInfoWidget extends StatelessWidget {
                             return Icon(
                               Icons.phone_android,
                               color: Colors.grey[400],
-                              size: 30,
+                              size: 24,
                             );
                           },
                         ),
@@ -78,20 +85,28 @@ class TransactionInfoWidget extends StatelessWidget {
                     : Icon(
                         Icons.phone_android,
                         color: Colors.grey[400],
-                        size: 30,
+                        size: 24,
                       ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     providername,
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: scrWidth * 0.035,
+                      color: Colors.grey[900],
+                    ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     "Operator",
-                    style: TextStyle(color: Colors.grey, fontSize: 10),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: scrWidth * 0.025,
+                    ),
                   ),
                 ],
               ),
@@ -99,29 +114,53 @@ class TransactionInfoWidget extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     providernum,
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: scrWidth * 0.035,
+                      color: Colors.grey[900],
+                    ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     "Mobile Number",
-                    style: TextStyle(color: Colors.grey, fontSize: 10),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: scrWidth * 0.025,
+                    ),
                   ),
                 ],
               ),
               Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text("N/A", style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    (providerliveid != null &&
+                            providerliveid.toString().isNotEmpty &&
+                            providerliveid.toString() != 'null')
+                        ? providerliveid.toString()
+                        : "N/A",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: scrWidth * 0.035,
+                      color: Colors.grey[900],
+                    ),
+                  ),
+                  const SizedBox(height: 2),
                   Text(
                     "Live ID",
-                    style: TextStyle(color: Colors.grey, fontSize: 10),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: scrWidth * 0.025,
+                    ),
                   ),
                 ],
               ),

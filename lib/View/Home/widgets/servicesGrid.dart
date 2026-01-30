@@ -89,14 +89,18 @@ class _servicesGridState extends State<servicesGrid> {
   ];
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       // height: MediaQuery.of(context).size.width*0.4,
       width: MediaQuery.of(context).size.width*1,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: isDark
+                ? Colors.black.withOpacity(0.25)
+                : Colors.black.withOpacity(0.2),
             blurRadius: 10,
             offset: Offset(0, 5),
           ),
@@ -140,13 +144,13 @@ class _servicesGridState extends State<servicesGrid> {
                         "View Less ":
                         "View More ",
                         style: TextStyle(fontWeight: FontWeight.w400,
-                            color: Colors.black,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                             fontSize: MediaQuery.of(context).size.width*0.025),),
                       Icon(
                         loansMoreView?
                         Icons.keyboard_arrow_up_rounded:
                         Icons.keyboard_arrow_down_outlined
-                        ,color: Colors.grey,),
+                        ,color: Theme.of(context).iconTheme.color?.withOpacity(0.7),),
                     ],
                   ),
                 ),
@@ -181,17 +185,24 @@ class _servicesGridState extends State<servicesGrid> {
                           width: MediaQuery.of(context).size.width*0.16,
                           decoration: BoxDecoration(
                             // image: DecorationImage(image: AssetImage(categ['image'])),
-                            color: colorConst.lightBlue,
+                            color: isDark
+                                ? scheme.primary.withOpacity(0.25)
+                                : colorConst.lightBlue,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.grey.withOpacity(0.3),
+                                color: isDark
+                                    ? Colors.black.withOpacity(0.25)
+                                    : Colors.grey.withOpacity(0.3),
                                 blurRadius: 10,
                                 offset: Offset(0, 5),
                               ),
                             ],
                             borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width*0.5),
                           ),
-                          child: Icon(service['icon'],color: Colors.black,),
+                          child: Icon(
+                            service['icon'],
+                            color: Theme.of(context).iconTheme.color,
+                          ),
                         ),
                         Padding(
                           padding:  EdgeInsets.only(top: MediaQuery.of(context).size.width*0.03),
@@ -200,7 +211,7 @@ class _servicesGridState extends State<servicesGrid> {
                             height: MediaQuery.of(context).size.width*0.1,
                             child: Text( service['name'],
                               style: TextStyle(fontWeight: FontWeight.w300,
-                                  color: Colors.black,
+                                  color: Theme.of(context).textTheme.bodyMedium?.color,
                                   fontSize: MediaQuery.of(context).size.width*0.029),
                               // overflow: TextOverflow.clip,
                               textAlign: TextAlign.center,),

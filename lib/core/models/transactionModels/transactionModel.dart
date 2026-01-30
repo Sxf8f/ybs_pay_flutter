@@ -54,12 +54,17 @@ class Transaction {
   final double comm;
   final double closing;
   final String refundStatus;
+  final String? refundStatusDisplay; // Human-readable display name for refund_status
+  final bool? disputeRequested; // Indicates if dispute was requested
   final String liveid;
   final String requestMode;
   final int user;
   final int operator;
   final int status;
   final int apiId;
+  final bool? w2rAllowed; // Whether W2R is allowed for this transaction
+  final String? w2rStatus; // null, "REQUESTED", "ACCEPTED", "REJECTED"
+  final String? w2rRightAccountNo; // Right account number if W2R is accepted
 
   Transaction({
     required this.id,
@@ -78,12 +83,17 @@ class Transaction {
     required this.comm,
     required this.closing,
     required this.refundStatus,
+    this.refundStatusDisplay,
+    this.disputeRequested,
     required this.liveid,
     required this.requestMode,
     required this.user,
     required this.operator,
     required this.status,
     required this.apiId,
+    this.w2rAllowed,
+    this.w2rStatus,
+    this.w2rRightAccountNo,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
@@ -96,7 +106,7 @@ class Transaction {
       apiName: json['api_name'] ?? '',
       phoneNumber: json['phone_number'] ?? '',
       username: json['username'] ?? '',
-      transactionId: json['transaction_id'] ?? '',
+      transactionId: json['transaction_id'] ?? json['txn_id'] ?? '',
       accountNo: json['account_no'] ?? '',
       opening: (json['opening'] ?? 0.0).toDouble(),
       amount: (json['amount'] ?? 0.0).toDouble(),
@@ -104,12 +114,21 @@ class Transaction {
       comm: (json['comm'] ?? 0.0).toDouble(),
       closing: (json['closing'] ?? 0.0).toDouble(),
       refundStatus: json['refund_status'] ?? '',
-      liveid: json['liveid'] ?? '',
+      refundStatusDisplay: json['refund_status_display'],
+      disputeRequested: json['dispute_requested'] is bool
+          ? json['dispute_requested']
+          : json['dispute_requested']?.toString().toLowerCase() == 'true',
+      liveid: (json['liveid'] ?? json['live_id'] ?? '').toString(),
       requestMode: json['request_mode'] ?? '',
       user: json['user'] ?? 0,
       operator: json['operator'] ?? 0,
       status: json['status'] ?? 0,
       apiId: json['api_id'] ?? 0,
+      w2rAllowed: json['w2r_allowed'] is bool
+          ? json['w2r_allowed']
+          : json['w2r_allowed']?.toString().toLowerCase() == 'true',
+      w2rStatus: json['w2r_status'],
+      w2rRightAccountNo: json['w2r_right_account_no'],
     );
   }
 }

@@ -1,25 +1,21 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:developer';
 
-import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
-import 'package:carousel_slider/carousel_slider.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 import 'package:flutter/material.dart';
-import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:screen_protector/screen_protector.dart';
-// import 'package:flutter_windowmanager/flutter_windowmanager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'package:ybs_pay/View/Reports/reportsScreen.dart';
-import '../main.dart';
 import 'View/Home/1homeScreen.dart';
 import 'View/Profile/profileScreen.dart';
 import 'View/Support/supportScreen.dart';
 import 'core/const/color_const.dart';
-import 'View/login/loginScreen.dart';
+import 'View/popup/popupHandler.dart';
+import 'core/bloc/userBloc/userBloc.dart';
+import 'core/bloc/userBloc/userState.dart';
+import 'core/bloc/userBloc/userEvent.dart';
+import 'core/bloc/dashboardBloc/dashboardBloc.dart';
+import 'core/bloc/dashboardBloc/dashboardEvent.dart';
 
 
 
@@ -60,7 +56,6 @@ class navigationPage extends StatefulWidget {
 class _navigationPageState extends State<navigationPage> {
   final GlobalKey<CurvedNavigationBarState> _bottomNavigationKey = GlobalKey();
 
-  final _controller = NotchBottomBarController(index: 0);
   final PageController _pageController = PageController(initialPage: 0);
   // final _pageController = PageController(initialPage: 0);
   int notiCount=0;
@@ -77,19 +72,12 @@ class _navigationPageState extends State<navigationPage> {
     super.dispose();
   }
 
-  List <Widget> bottomBarPages = [
-    homeScreen(),
-    reportsScreen(),
-    supportsScreen(),
-    profileScreen(),
-  ];
   int selectedIndex = 0;
   void onItemTapped(int Index) {
     setState(() {
       selectedIndex = Index;
     });
   }
-  late int _activeIndex;
   int _currentIndex = 0;
 
   @override
@@ -98,15 +86,16 @@ class _navigationPageState extends State<navigationPage> {
     super.initState();
     // startPolling();
     // fetchUnreadNotifications();
-    _activeIndex = widget.initialIndex;
+    _currentIndex = widget.initialIndex;
     // ScreenProtector.preventScreenshotOn();
   }
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: SafeArea(
-        maintainBottomViewPadding: true,
-        child: Scaffold(
+    return PopupHandler(
+      child: Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: SafeArea(
+          maintainBottomViewPadding: true,
+          child: Scaffold(
             // appBar: AppBar(
             //   backgroundColor: Colors.white,
             //   scrolledUnderElevation: 0,
@@ -219,7 +208,23 @@ class _navigationPageState extends State<navigationPage> {
             //
             //   ],
             // ),
-            body: bottomBarPages[_currentIndex],
+            body: BlocBuilder<UserBloc, UserState>(
+              builder: (context, state) {
+                // Determine pages based on role
+                List<Widget> pages;
+
+                // For now, use same pages for both (will update when distributor screens are ready)
+                // TODO: Replace with distributor-specific screens when created
+                pages = [
+                  homeScreen(), // Will show distributor dashboard if distributor
+                  reportsScreen(), // Will show distributor reports if distributor
+                  supportsScreen(),
+                  profileScreen(),
+                ];
+                
+                return pages[_currentIndex];
+              },
+            ),
           extendBody: true,
           backgroundColor: Colors.transparent,
             bottomNavigationBar: CurvedNavigationBar(
@@ -305,6 +310,21 @@ class _navigationPageState extends State<navigationPage> {
                 setState(() {
                   _currentIndex = index;
                 });
+                // Refresh only balance and stats when navigating to home screen (index 0)
+                if (index == 0) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      try {
+                        // Use RefreshBalanceOnlyEvent to preserve profile picture
+                        context.read<UserBloc>().add(const RefreshBalanceOnlyEvent());
+                        context.read<DashboardBloc>().add(FetchDashboardStatistics(period: 'month'));
+                        print('🔄 [NAVIGATION] Refreshing balance and stats on home tab selection');
+                      } catch (e) {
+                        print('⚠️ [NAVIGATION] Could not refresh balance and stats: $e');
+                      }
+                    }
+                  });
+                }
               },
 
             )
@@ -312,6 +332,7 @@ class _navigationPageState extends State<navigationPage> {
 
         ),
       ),
+    ),
     );
   }
 }

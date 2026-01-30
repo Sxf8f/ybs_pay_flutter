@@ -50,3 +50,18 @@ class signInAuthFailure extends signInAuthState {
   @override
   List<Object> get props => [loginErrorMessage];
 }
+
+class signInAuthOtpRequired extends signInAuthState {
+  final String userId;
+  final String loginType;
+  final String message;
+
+  signInAuthOtpRequired({
+    required this.userId,
+    required this.loginType,
+    required this.message,
+  });
+
+  @override
+  List<Object> get props => [userId, loginType, message];
+}

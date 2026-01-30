@@ -1,19 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/const/color_const.dart';
+import '../../../core/const/assets_const.dart';
+import '../../../core/bloc/appBloc/appBloc.dart';
+import '../../../core/bloc/appBloc/appState.dart';
+import '../../../core/bloc/appBloc/appEvent.dart';
 import '../../../main.dart';
 import '../../notification/notificationScreen.dart';
-import '../../widgets/action_icon_button.dart';
-import '../../widgets/spacing.dart';
 
 
 
 /// A StatelessWidget that represents the app bar used in the add money app screen.
 
 
-class appBarAddMoney extends StatelessWidget implements PreferredSizeWidget{
+class appBarAddMoney extends StatefulWidget implements PreferredSizeWidget{
   const appBarAddMoney({super.key});
   @override
   Size get preferredSize => Size.fromHeight(kToolbarHeight);
+
+  @override
+  State<appBarAddMoney> createState() => _appBarAddMoneyState();
+}
+
+class _appBarAddMoneyState extends State<appBarAddMoney> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch settings once on initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AppBloc>().add(FetchSettingsEvent());
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,18 +53,35 @@ class appBarAddMoney extends StatelessWidget implements PreferredSizeWidget{
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  // color: Colors.grey,
-                  //   width: MediaQuery.of(context).size.width*0.07,
-                    height: MediaQuery.of(context).size.width*0.05,
-                    child: Row(
-                      children: [
-                        Image.asset("assets/images/ybs.jpeg"),
-                      ],
-                    )),
+                BlocBuilder<AppBloc, AppState>(
+                  buildWhen: (previous, current) => current is AppLoaded,
+                  builder: (context, state) {
+                    String logoPath = "assets/images/ybs.jpeg";
+                    if (state is AppLoaded && state.settings?.logo != null) {
+                      logoPath =
+                          "${AssetsConst.apiBase}media/${state.settings!.logo!.image}";
+                    }
+                    return Container(
+                      height: MediaQuery.of(context).size.width * 0.05,
+                      child: Row(
+                        children: [
+                          logoPath.startsWith('http')
+                              ? Image.network(
+                                  logoPath,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      "assets/images/ybs.jpeg",
+                                    );
+                                  },
+                                )
+                              : Image.asset("assets/images/ybs.jpeg"),
+                        ],
+                      ),
+                    );
+                  },
+                ),
                 Row(
                   children: [
-                    Icon(Icons.autorenew_sharp,color: colorConst.primaryColor1,),
                     SizedBox(width: scrWidth*0.02,),
 
                     Stack(

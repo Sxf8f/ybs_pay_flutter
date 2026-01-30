@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/const/color_const.dart';
 import '../../../main.dart';
+import 'forgotPasswordDialog.dart';
 
 class rememberMe extends StatefulWidget {
   final bool value;
@@ -57,14 +58,16 @@ class _rememberMeState extends State<rememberMe> {
             ),
             InkWell(
               onTap: () {
-
+                showDialog(
+                  context: context,
+                  builder: (context) => ForgotPasswordDialog(),
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.only(right: 20),
                 child: Text("Forgot password",
                   style: TextStyle(
-                    // color: Colors.blue.shade700,
-                    // color: colorConst.primaryColor1,
+                    color: colorConst.primaryColor1,
                       fontWeight: FontWeight.w600,
                       fontSize: scrWidth*0.028
                   ),),

@@ -41,11 +41,12 @@ class _appBarState extends State<appBar> {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      // backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       backgroundColor: Colors.white,
       scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
       elevation: 0,
-      iconTheme: IconThemeData(color: Colors.black),
+      iconTheme: Theme.of(context).appBarTheme.iconTheme,
       // backgroundColor: _isNightMode?Colors.black: Colors.white,
       actions: [
         SizedBox(
@@ -58,27 +59,26 @@ class _appBarState extends State<appBar> {
                 BlocBuilder<AppBloc, AppState>(
                   buildWhen: (previous, current) => current is AppLoaded,
                   builder: (context, state) {
-                    if (state is AppLoaded && state.settings?.appLogo != null) {
-                      final logoPath =
-                          "${AssetsConst.apiBase}media/${state.settings!.appLogo!.image}";
-                      return Container(
-                        height: MediaQuery.of(context).size.width * 0.05,
-                        child: Row(
-                          children: [
-                            Image.network(
-                              logoPath,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset("assets/images/ybs.jpeg");
-                              },
-                            ),
-                          ],
-                        ),
-                      );
+                    String logoPath = "assets/images/ybs.jpeg";
+                    if (state is AppLoaded && state.settings?.logo != null) {
+                      logoPath =
+                          "${AssetsConst.apiBase}media/${state.settings!.logo!.image}";
                     }
                     return Container(
                       height: MediaQuery.of(context).size.width * 0.05,
                       child: Row(
-                        children: [Image.asset("assets/images/ybs.jpeg")],
+                        children: [
+                          logoPath.startsWith('http')
+                              ? Image.network(
+                                  logoPath,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      "assets/images/ybs.jpeg",
+                                    );
+                                  },
+                                )
+                              : Image.asset("assets/images/ybs.jpeg"),
+                        ],
                       ),
                     );
                   },

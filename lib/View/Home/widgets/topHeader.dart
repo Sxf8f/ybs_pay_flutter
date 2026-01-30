@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/const/color_const.dart';
 import '../../../core/bloc/userBloc/userBloc.dart';
@@ -15,200 +16,241 @@ class topHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<UserBloc, UserState>(
-      builder: (context, state) {
-        final user = state is UserLoaded ? state.user : null;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth > 0 
+            ? constraints.maxWidth 
+            : MediaQuery.of(context).size.width;
+        
+        return BlocBuilder<UserBloc, UserState>(
+          builder: (context, state) {
+            final user = state is UserLoaded ? state.user : null;
 
-        return Stack(
-          children: [
-            // SizedBox(height: scrWidth*0.5,),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Container(
-                height: scrWidth * 0.35,
-                width: scrWidth * 1,
-                decoration: BoxDecoration(
-                  color: colorConst.primaryColor1,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.elliptical(
-                      scrWidth * 0.9,
-                      scrWidth * 0.09,
-                    ),
-                    bottomRight: Radius.elliptical(
-                      scrWidth * 0.9,
-                      scrWidth * 0.09,
-                    ),
-                    // bottomRight: Radius.circular(scrWidth*0.2)
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              top: 30,
-              child: SizedBox(
-                width: scrWidth * 1,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 12, right: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Stack(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: Colors.grey.shade100,
-                                minRadius:
-                                    MediaQuery.of(context).size.width * 0.05,
-                                maxRadius:
-                                    MediaQuery.of(context).size.width * 0.06,
-                                child: Image.asset(
-                                  'assets/images/icons/profile.png',
-                                ),
-                              ),
-                            ],
+            return SizedBox(
+              width: screenWidth,
+              height: scrWidth * 0.35 + 30, // Height of background + top padding
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Background container with fixed width
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 12,
+                    child: Container(
+                      height: scrWidth * 0.35,
+                      width: screenWidth,
+                      decoration: BoxDecoration(
+                        color: colorConst.primaryColor1,
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.elliptical(
+                            scrWidth * 0.9,
+                            scrWidth * 0.09,
                           ),
-                          Padding(
-                            padding: EdgeInsets.only(left: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          bottomRight: Radius.elliptical(
+                            scrWidth * 0.9,
+                            scrWidth * 0.09,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Content positioned absolutely
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 30,
+                    child: Container(
+                      width: screenWidth,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Stack(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: Colors.grey.shade100,
+                                    minRadius:
+                                        MediaQuery.of(context).size.width * 0.05,
+                                    maxRadius:
+                                        MediaQuery.of(context).size.width * 0.06,
+                                    child: user?.profilePictureUrl != null &&
+                                            user!.profilePictureUrl!.isNotEmpty
+                                        ? ClipOval(
+                                            child: CachedNetworkImage(
+                                              imageUrl: user.profilePictureUrl!,
+                                              fit: BoxFit.cover,
+                                              width: MediaQuery.of(context)
+                                                      .size
+                                                      .width *
+                                                  0.12,
+                                              height: MediaQuery.of(context)
+                                                      .size
+                                                      .width *
+                                                  0.12,
+                                              placeholder: (context, url) =>
+                                                  Image.asset(
+                                                'assets/images/icons/profile.png',
+                                                fit: BoxFit.cover,
+                                              ),
+                                              errorWidget: (context, url, error) =>
+                                                  Image.asset(
+                                                'assets/images/icons/profile.png',
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                          )
+                                        : Image.asset(
+                                            'assets/images/icons/profile.png',
+                                            fit: BoxFit.cover,
+                                          ),
+                                  ),
+                                ],
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(left: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      user?.fullName ?? 'User',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        fontSize:
-                                            MediaQuery.of(context).size.width *
-                                            0.034,
-                                        fontStyle: FontStyle.normal,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          user?.fullName ?? 'User',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            color: Colors.white,
+                                            fontSize:
+                                                MediaQuery.of(context).size.width *
+                                                0.034,
+                                            fontStyle: FontStyle.normal,
+                                          ),
+                                        ),
+                                        Text(
+                                          ' - ${user?.roleName ?? 'Retailer'}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.white,
+                                            fontSize:
+                                                MediaQuery.of(context).size.width *
+                                                0.027,
+                                            fontStyle: FontStyle.normal,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     Text(
-                                      ' - ${user?.roleName ?? 'Retailer'}',
+                                      user?.outlet ?? 'Outlet',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w500,
                                         color: Colors.white,
                                         fontSize:
                                             MediaQuery.of(context).size.width *
-                                            0.027,
+                                            0.028,
                                         fontStyle: FontStyle.normal,
                                       ),
                                     ),
                                   ],
                                 ),
-                                Text(
-                                  user?.outlet ?? 'Outlet',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                    fontSize:
-                                        MediaQuery.of(context).size.width *
-                                        0.028,
-                                    fontStyle: FontStyle.normal,
-                                  ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            children: [
+                              Text(
+                                'Prepaid Wallet',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.028,
+                                  fontStyle: FontStyle.normal,
                                 ),
-                              ],
-                            ),
+                              ),
+                              Text(
+                                '₹ ${user?.balance ?? '0.00'}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.033,
+                                  fontStyle: FontStyle.normal,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-
-                      Column(
-                        children: [
-                          Text(
-                            'Prepaid Wallet',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
-                              fontSize:
-                                  MediaQuery.of(context).size.width * 0.028,
-                              fontStyle: FontStyle.normal,
-                            ),
-                          ),
-                          Text(
-                            '₹ ${user?.balance ?? '0.00'}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                              fontSize:
-                                  MediaQuery.of(context).size.width * 0.033,
-                              fontStyle: FontStyle.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              child: SizedBox(
-                width: scrWidth * 1,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => addMoneyScreen(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: colorConst.primaryColor3,
-                          borderRadius: BorderRadius.circular(scrWidth * 0.05),
-                          // borderRadius: BorderRadius.only(topRight: )
-                        ),
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              right: 15,
-                              left: 10,
-                              top: 10,
-                              bottom: 10,
-                            ),
-                            child: Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    right: 7,
-                                    left: 7,
-                                  ),
-                                  child: Icon(
-                                    Icons.add_card_outlined,
-                                    color: Colors.white,
-                                    size: 15,
-                                  ),
-                                ),
-                                Text(
-                                  'Add Money',
-                                  style: TextStyle(
-                                    fontSize: scrWidth * 0.03,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  // Add Money button positioned at bottom
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => addMoneyScreen(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: colorConst.primaryColor3,
+                              borderRadius: BorderRadius.circular(scrWidth * 0.05),
+                            ),
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  right: 15,
+                                  left: 10,
+                                  top: 10,
+                                  bottom: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        right: 7,
+                                        left: 7,
+                                      ),
+                                      child: Icon(
+                                        Icons.add_card_outlined,
+                                        color: Colors.white,
+                                        size: 15,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Add Money',
+                                      style: TextStyle(
+                                        fontSize: scrWidth * 0.03,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            );
+          },
         );
       },
     );

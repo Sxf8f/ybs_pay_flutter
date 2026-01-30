@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:ybs_pay/View/TransactionHistory/widgets/appbar.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ybs_pay/View/TransactionHistory/widgets/filterTransactions.dart';
 import 'package:ybs_pay/View/TransactionHistory/widgets/historyListView.dart';
 import 'package:ybs_pay/View/TransactionHistory/widgets/statusTabs.dart';
 import 'package:ybs_pay/core/const/assets_const.dart';
 import 'package:ybs_pay/core/models/transactionModels/transactionModel.dart';
+import 'package:ybs_pay/core/bloc/appBloc/appBloc.dart';
+import 'package:ybs_pay/core/bloc/appBloc/appState.dart';
+import 'package:ybs_pay/main.dart';
 
 class TransactHistory extends StatefulWidget {
   const TransactHistory({super.key});
@@ -22,6 +25,7 @@ class _TransactHistoryState extends State<TransactHistory> {
   bool isLoading = false;
   TransactionResponse? transactionResponse;
   List<Transaction> allTransactions = [];
+  Map<int, String> operatorImageMap = {}; // Map operator ID -> image path
 
   // Filter states
   int? selectedOperatorType;
@@ -76,6 +80,10 @@ class _TransactHistoryState extends State<TransactHistory> {
         '${AssetsConst.apiBase}api/recharge-report-android/',
       ).replace(queryParameters: queryParams);
 
+      print('📊 [TRANSACTION_HISTORY] Fetching transactions...');
+      print('   📡 API Endpoint: ${uri.toString()}');
+      print('   🔑 Query Parameters: $queryParams');
+
       final response = await http.get(
         uri,
         headers: {
@@ -84,12 +92,55 @@ class _TransactHistoryState extends State<TransactHistory> {
         },
       );
 
+      print('   📊 Response Status: ${response.statusCode}');
+      print('   📏 Response Body Length: ${response.body.length} bytes');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print('   ✅ JSON parsed successfully');
+        print('   📋 Transactions count: ${data['transactions']?.length ?? 0}');
+
+        // Build operator image map from filters.operators
+        final Map<int, String> imageMap = {};
+        if (data['filters'] != null && data['filters']['operators'] != null) {
+          final operators = data['filters']['operators'] as List;
+          print(
+            '   🔍 Building operator image map from ${operators.length} operators',
+          );
+          for (var op in operators) {
+            final operatorId = op['id'] as int?;
+            final imagePath = op['image']?.toString() ?? '';
+            if (operatorId != null && imagePath.isNotEmpty) {
+              imageMap[operatorId] = imagePath;
+              print('   📝 Operator ID $operatorId -> Image: "$imagePath"');
+            }
+          }
+          print(
+            '   ✅ Built operator image map with ${imageMap.length} entries',
+          );
+        }
+
+        // Debug: Print first transaction details
+        if (data['transactions'] != null &&
+            (data['transactions'] as List).isNotEmpty) {
+          final firstTransaction = (data['transactions'] as List)[0];
+          final operatorId = firstTransaction['operator'] as int?;
+          final operatorImage = imageMap[operatorId] ?? 'N/A';
+          print('   🔍 First transaction:');
+          print('      - Operator ID: $operatorId');
+          print(
+            '      - Operator Name: "${firstTransaction['operator_name']}"',
+          );
+          print('      - Operator Image (from map): "$operatorImage"');
+        }
+
         setState(() {
           transactionResponse = TransactionResponse.fromJson(data);
           allTransactions = transactionResponse?.transactions ?? [];
+          operatorImageMap = imageMap; // Store the image map
         });
+
+        print('   ✅ Loaded ${allTransactions.length} transactions');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -131,7 +182,68 @@ class _TransactHistoryState extends State<TransactHistory> {
       child: SafeArea(
         child: Scaffold(
           backgroundColor: Colors.white,
-          appBar: appbartransactionpage(),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            automaticallyImplyLeading: false,
+            actions: [
+              SizedBox(
+                width: MediaQuery.of(context).size.width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left: Back arrow + Logo
+                      Row(
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Icon(
+                              Icons.arrow_back_ios,
+                              size: 20,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Logo from AppBloc
+                          BlocBuilder<AppBloc, AppState>(
+                            buildWhen: (previous, current) =>
+                                current is AppLoaded,
+                            builder: (context, state) {
+                              String? logoPath;
+                              if (state is AppLoaded &&
+                                  state.settings?.logo != null) {
+                                logoPath =
+                                    "${AssetsConst.apiBase}media/${state.settings!.logo!.image}";
+                              }
+                              return Container(
+                                height: scrWidth * 0.05,
+                                child: logoPath != null && logoPath.isNotEmpty
+                                    ? Image.network(
+                                        logoPath,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return SizedBox.shrink();
+                                            },
+                                      )
+                                    : SizedBox.shrink(),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      // Right: Empty space
+                      SizedBox(width: scrWidth * 0.05),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
           body: Column(
             children: [
               // status Tabs
@@ -191,6 +303,7 @@ class _TransactHistoryState extends State<TransactHistory> {
                   transactions: filteredTransactions,
                   letterpass: SearchQuery,
                   onRefresh: fetchTransactions,
+                  operatorImageMap: operatorImageMap, // Pass operator image map
                 ),
             ],
           ),

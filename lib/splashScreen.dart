@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:http/http.dart' as http;
 
 import 'core/const/color_const.dart';
 import 'core/const/assets_const.dart';
@@ -17,6 +15,8 @@ import 'core/bloc/layoutBloc/layoutBloc.dart';
 import 'core/bloc/layoutBloc/layoutEvent.dart';
 import 'core/bloc/notificationBloc/notificationBloc.dart';
 import 'core/bloc/notificationBloc/notificationEvent.dart';
+import 'core/auth/tokenManager.dart';
+import 'core/auth/tokenRefreshService.dart';
 import 'View/login/loginScreen.dart';
 
 import 'main.dart';
@@ -66,95 +66,8 @@ class SessionManager {
   }
 }
 
-class TokenManager {
-  static Future<bool> validateToken(String token) async {
-    try {
-      print('Validating token: ${token.substring(0, 20)}...');
-
-      final response = await http.post(
-        Uri.parse('${AssetsConst.apiBase}api/validate-token-android/'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'token': token}),
-      );
-
-      print('Token validation response status: ${response.statusCode}');
-      print('Token validation response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final isValid = data['is_valid'] ?? false;
-        final isExpired = data['is_expired'] ?? true;
-
-        print('Token validation result - Valid: $isValid, Expired: $isExpired');
-
-        return isValid && !isExpired;
-      }
-
-      return false;
-    } catch (e) {
-      print('Error validating token: $e');
-      return false;
-    }
-  }
-
-  static Future<String?> refreshToken(String username, String password) async {
-    try {
-      print('Refreshing token for username: $username');
-
-      final response = await http.post(
-        Uri.parse('${AssetsConst.apiBase}api/refresh-token-android/'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username, 'password': password}),
-      );
-
-      print('Token refresh response status: ${response.statusCode}');
-      print('Token refresh response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final success = data['success'] ?? false;
-
-        if (success) {
-          final newToken = data['token'];
-          final user = data['user'];
-
-          print('Token refresh successful');
-          print('New token: ${newToken.substring(0, 20)}...');
-          print('User data: $user');
-
-          // Store the new token and user data
-          await _storeRefreshedToken(newToken, user);
-
-          return newToken;
-        }
-      }
-
-      print('Token refresh failed');
-      return null;
-    } catch (e) {
-      print('Error refreshing token: $e');
-      return null;
-    }
-  }
-
-  static Future<void> _storeRefreshedToken(
-    String token,
-    Map<String, dynamic> user,
-  ) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // Store the new token
-    await prefs.setString('access_token', token);
-
-    // Store updated user data if available
-    await prefs.setInt('user_id', user['id'] ?? 0);
-    await prefs.setString('username', user['username'] ?? '');
-    await prefs.setString('email', user['email'] ?? '');
-    await prefs.setString('phone_number', user['phone_number'] ?? '');
-
-    print('Refreshed token and user data stored successfully');
-  }
-}
+// TokenManager has been moved to core/auth/tokenManager.dart
+// Using the new TokenManager from there
 
 class splashScreen extends StatefulWidget {
   const splashScreen({super.key});
@@ -210,21 +123,110 @@ class _splashScreenState extends State<splashScreen> {
     final token = prefs.getString('access_token');
     final username = prefs.getString('username');
     final password = prefs.getString('login_password');
+    final roleId = prefs.getInt('role_id');
 
     print('Checking login status... $username $password $token');
     print('User ID: ${prefs.getInt('user_id') ?? ''}');
     print('Username: ${username ?? ''}');
+    print('Role ID: $roleId');
     print('Token exists: ${token != null && token.isNotEmpty}');
 
     await Future.delayed(const Duration(seconds: 2));
 
+    // Check role ID first - only allow distributor (2) and retailer (6)
+    if (roleId != null && roleId != 2 && roleId != 6) {
+      print('❌ Unauthorized role ID: $roleId. Logging out user...');
+      // Clear all user data and tokens
+      await TokenManager.clearTokens();
+      await prefs.clear();
+      // Navigate to login screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => loginScreen()),
+        );
+      }
+      return;
+    }
+
     if (token != null && token.isNotEmpty) {
       print('Token found, validating...');
 
-      // Validate the token
-      final isValid = await TokenManager.validateToken(token);
+      // Validate the token using new TokenManager
+      final validationResult = await TokenManager.validateToken();
+
+      // If validation failed due to a server error (e.g. 500) and we didn't get
+      // a structured response, do NOT force logout. Assume the token is still
+      // usable (other authenticated APIs work) and continue to home.
+      if (validationResult == null) {
+        print(
+          'Token validation could not be completed (null response). Skipping strict validation and proceeding as logged-in.',
+        );
+
+        // Start token refresh service
+        TokenRefreshService.start();
+
+        try {
+          context.read<UserBloc>().add(FetchUserDetailsEvent());
+        } catch (_) {}
+        try {
+          print(
+            '📰 [SPLASH] Dispatching FetchNewsEvent (validation null path)...',
+          );
+          context.read<AppBloc>().add(FetchNewsEvent());
+          print(
+            '📰 [SPLASH] FetchNewsEvent dispatched successfully (validation null path)',
+          );
+        } catch (e) {
+          print(
+            '⚠️ Error dispatching FetchNewsEvent (validation null path): $e',
+          );
+        }
+        try {
+          context.read<LayoutBloc>().add(FetchLayoutsEvent());
+        } catch (e) {
+          print(
+            '⚠️ Error dispatching FetchLayoutsEvent (validation null path): $e',
+          );
+        }
+        try {
+          context.read<NotificationBloc>().add(
+            const FetchNotificationStatsEvent(),
+          );
+        } catch (_) {}
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => navigationPage(initialIndex: 0)),
+          );
+        }
+        return;
+      }
+
+      final isValid = validationResult['is_valid'] == true;
+      final isExpired = validationResult['is_expired'] == true;
+      final validationMessage = validationResult['message']?.toString();
 
       if (isValid) {
+        // Double-check role ID after token validation
+        final currentRoleId = prefs.getInt('role_id');
+        if (currentRoleId != null && currentRoleId != 2 && currentRoleId != 6) {
+          print(
+            '❌ Unauthorized role ID after validation: $currentRoleId. Logging out...',
+          );
+          await TokenManager.clearTokens();
+          await prefs.clear();
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => loginScreen()),
+            );
+          }
+          return;
+        }
+        // Start token refresh service
+        TokenRefreshService.start();
         print(
           'Token is valid, dispatching refetch events and navigating to home',
         );
@@ -232,12 +234,24 @@ class _splashScreenState extends State<splashScreen> {
         try {
           context.read<UserBloc>().add(FetchUserDetailsEvent());
         } catch (_) {}
+        // Banners are already loaded in main.dart on app startup, no need to refetch here
+        // try {
+        //   context.read<AppBloc>().add(FetchBannersEvent());
+        // } catch (e) {
+        //   print('⚠️ Error dispatching FetchBannersEvent: $e');
+        // }
         try {
-          context.read<AppBloc>().add(FetchBannersEvent());
-        } catch (_) {}
+          print('📰 [SPLASH] Dispatching FetchNewsEvent...');
+          context.read<AppBloc>().add(FetchNewsEvent());
+          print('📰 [SPLASH] FetchNewsEvent dispatched successfully');
+        } catch (e) {
+          print('⚠️ Error dispatching FetchNewsEvent: $e');
+        }
         try {
           context.read<LayoutBloc>().add(FetchLayoutsEvent());
-        } catch (_) {}
+        } catch (e) {
+          print('⚠️ Error dispatching FetchLayoutsEvent: $e');
+        }
         try {
           context.read<NotificationBloc>().add(
             const FetchNotificationStatsEvent(),
@@ -248,49 +262,94 @@ class _splashScreenState extends State<splashScreen> {
           MaterialPageRoute(builder: (_) => navigationPage(initialIndex: 0)),
         );
       } else {
-        print('Token is invalid or expired, attempting to refresh...');
-
-        // Try to refresh token if we have stored credentials
-        if (username != null &&
-            username.isNotEmpty &&
-            password != null &&
-            password.isNotEmpty) {
-          print('Attempting token refresh with stored credentials');
-          final newToken = await TokenManager.refreshToken(username, password);
-
-          if (newToken != null && newToken.isNotEmpty) {
-            print(
-              'Token refresh successful, dispatching refetch events and navigating to home',
-            );
-            try {
-              context.read<UserBloc>().add(FetchUserDetailsEvent());
-            } catch (_) {}
-            try {
-              context.read<AppBloc>().add(FetchBannersEvent());
-            } catch (_) {}
-            try {
-              context.read<LayoutBloc>().add(FetchLayoutsEvent());
-            } catch (_) {}
-            try {
-              context.read<NotificationBloc>().add(
-                const FetchNotificationStatsEvent(),
-              );
-            } catch (_) {}
+        // If backend tells us the token was invalidated due to password reset,
+        // clear everything and send user to login.
+        if (!isExpired &&
+            validationMessage != null &&
+            validationMessage.toLowerCase() ==
+                'token invalidated by password reset') {
+          print(
+            'Token invalidated by password reset (splash). Clearing tokens and redirecting to login.',
+          );
+          await TokenManager.clearTokens();
+          await prefs.clear();
+          if (mounted) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => navigationPage(initialIndex: 0),
+                builder: (_) => loginScreen(
+                  logoutMessage: 'Your password was reset. Please login again.',
+                ),
               ),
             );
-          } else {
-            print('Token refresh failed, navigating to login');
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => loginScreen()),
-            );
           }
+          return;
+        }
+
+        print('Token is invalid or expired, attempting to refresh...');
+
+        // Try to refresh token using refresh token
+        print('Attempting token refresh with refresh token');
+        final refreshed = await TokenManager.refreshToken();
+
+        if (refreshed) {
+          print(
+            'Token refresh successful, starting refresh service and navigating to home',
+          );
+          // Double-check role ID after token refresh
+          final currentRoleId = prefs.getInt('role_id');
+          if (currentRoleId != null &&
+              currentRoleId != 2 &&
+              currentRoleId != 6) {
+            print(
+              '❌ Unauthorized role ID after refresh: $currentRoleId. Logging out...',
+            );
+            await TokenManager.clearTokens();
+            await prefs.clear();
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => loginScreen()),
+              );
+            }
+            return;
+          }
+          // Start token refresh service
+          TokenRefreshService.start();
+          try {
+            context.read<UserBloc>().add(FetchUserDetailsEvent());
+          } catch (_) {}
+          // Banners are already loaded in main.dart on app startup, no need to refetch here
+          // try {
+          //   context.read<AppBloc>().add(FetchBannersEvent());
+          // } catch (e) {
+          //   print('⚠️ Error dispatching FetchBannersEvent (refresh): $e');
+          // }
+          try {
+            print('📰 [SPLASH] Dispatching FetchNewsEvent (refresh path)...');
+            context.read<AppBloc>().add(FetchNewsEvent());
+            print(
+              '📰 [SPLASH] FetchNewsEvent dispatched successfully (refresh path)',
+            );
+          } catch (e) {
+            print('⚠️ Error dispatching FetchNewsEvent (refresh): $e');
+          }
+          try {
+            context.read<LayoutBloc>().add(FetchLayoutsEvent());
+          } catch (e) {
+            print('⚠️ Error dispatching FetchLayoutsEvent (refresh): $e');
+          }
+          try {
+            context.read<NotificationBloc>().add(
+              const FetchNotificationStatsEvent(),
+            );
+          } catch (_) {}
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => navigationPage(initialIndex: 0)),
+          );
         } else {
-          print('No stored credentials for token refresh, navigating to login');
+          print('Token refresh failed, redirecting to login');
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => loginScreen()),

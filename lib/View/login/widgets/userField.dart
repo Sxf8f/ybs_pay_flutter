@@ -38,7 +38,7 @@ class userField extends StatelessWidget {
             filled: true,
             fillColor: Colors.white,
             contentPadding: EdgeInsets.all(10),
-            hintText:"Login Id",
+            hintText:"Email or Phone Number",
             hintStyle: TextStyle(
                 color: Colors.grey,
                 fontWeight: FontWeight.w300,

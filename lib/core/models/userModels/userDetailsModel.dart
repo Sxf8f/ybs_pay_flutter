@@ -25,6 +25,7 @@ class UserDetails {
   final String balance;
   final String roleName;
   final String roleCode;
+  final int? roleId;
   final String slabName;
   final int slabId;
   final bool isGst;
@@ -34,6 +35,7 @@ class UserDetails {
   final String updatedAt;
   final bool forcePasswordChange;
   final String? liveid;
+  final String? profilePictureUrl;
 
   UserDetails({
     required this.id,
@@ -48,6 +50,7 @@ class UserDetails {
     required this.balance,
     required this.roleName,
     required this.roleCode,
+    this.roleId,
     required this.slabName,
     required this.slabId,
     required this.isGst,
@@ -57,6 +60,7 @@ class UserDetails {
     required this.updatedAt,
     required this.forcePasswordChange,
     this.liveid,
+    this.profilePictureUrl,
   });
 
   factory UserDetails.fromJson(Map<String, dynamic> json) {
@@ -73,6 +77,7 @@ class UserDetails {
       balance: json['balance'] ?? '0.00',
       roleName: json['role_name'] ?? '',
       roleCode: json['role_code'] ?? '',
+      roleId: json['role_id'] ?? json['roleId'],
       slabName: json['slab_name'] ?? '',
       slabId: json['slab_id'] ?? 0,
       isGst: json['is_gst'] ?? false,
@@ -84,6 +89,7 @@ class UserDetails {
       updatedAt: json['updated_at'] ?? '',
       forcePasswordChange: json['force_password_change'] ?? false,
       liveid: json['liveid'],
+      profilePictureUrl: json['profile_picture_url'],
     );
   }
 

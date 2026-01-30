@@ -14,7 +14,14 @@ import '../../notification/notificationScreen.dart';
 /// A StatelessWidget that represents the app bar used in the home screen.
 class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {
   final VoidCallback? onRefresh;
-  const HomeAppBar({super.key, this.onRefresh});
+  final bool showBackButton;
+  final VoidCallback? onBackPressed;
+  const HomeAppBar({
+    super.key,
+    this.onRefresh,
+    this.showBackButton = false,
+    this.onBackPressed,
+  });
 
   @override
   Size get preferredSize => Size.fromHeight(kToolbarHeight);
@@ -41,59 +48,73 @@ class _HomeAppBarState extends State<HomeAppBar> {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      // backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       backgroundColor: Colors.white,
       scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
       elevation: 0,
-      iconTheme: IconThemeData(color: Colors.black),
-      // backgroundColor: _isNightMode?Colors.black: Colors.white,
+      iconTheme: Theme.of(context).appBarTheme.iconTheme,
       actions: [
         SizedBox(
           width: MediaQuery.of(context).size.width * 1,
           child: Padding(
-            padding: const EdgeInsets.only(right: 18.0, left: 25),
+            padding: EdgeInsets.only(
+              right: 18.0,
+              left: widget.showBackButton ? 16.0 : 25.0,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                BlocBuilder<AppBloc, AppState>(
-                  buildWhen: (previous, current) => current is AppLoaded,
-                  builder: (context, state) {
-                    if (state is AppLoaded && state.settings?.appLogo != null) {
-                      final logoPath =
-                          "${AssetsConst.apiBase}media/${state.settings!.appLogo!.image}";
-                      return Container(
-                        height: MediaQuery.of(context).size.width * 0.05,
-                        child: Row(
-                          children: [
-                            Image.network(
-                              logoPath,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset("assets/images/ybs.jpeg");
-                              },
-                            ),
-                          ],
+                Row(
+                  children: [
+                    if (widget.showBackButton) ...[
+                      InkWell(
+                        onTap:
+                            widget.onBackPressed ??
+                            () {
+                              Navigator.pop(context);
+                            },
+                        child: Icon(
+                          Icons.arrow_back_ios,
+                          size: 20,
+                          color: Colors.grey.shade800,
                         ),
-                      );
-                    }
-                    return Container(
-                      height: MediaQuery.of(context).size.width * 0.05,
-                      child: Row(
-                        children: [Image.asset("assets/images/ybs.jpeg")],
                       ),
-                    );
-                  },
+                      const SizedBox(width: 12),
+                    ],
+                    BlocBuilder<AppBloc, AppState>(
+                      buildWhen: (previous, current) => current is AppLoaded,
+                      builder: (context, state) {
+                        String logoPath = "assets/images/ybs.jpeg";
+                        if (state is AppLoaded &&
+                            state.settings?.logo != null) {
+                          logoPath =
+                              "${AssetsConst.apiBase}media/${state.settings!.logo!.image}";
+                        }
+                        return Container(
+                          height: MediaQuery.of(context).size.width * 0.05,
+                          child: Row(
+                            children: [
+                              logoPath.startsWith('http')
+                                  ? Image.network(
+                                      logoPath,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return Image.asset(
+                                              "assets/images/ybs.jpeg",
+                                            );
+                                          },
+                                    )
+                                  : Image.asset("assets/images/ybs.jpeg"),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
                 Row(
                   children: [
-                    InkWell(
-                      onTap: widget.onRefresh,
-                      child: Icon(
-                        Icons.autorenew_sharp,
-                        color: colorConst.primaryColor1,
-                      ),
-                    ),
-                    SizedBox(width: scrWidth * 0.02),
-
                     BlocBuilder<NotificationBloc, NotificationState>(
                       buildWhen: (previous, current) =>
                           current is NotificationStatsLoaded,

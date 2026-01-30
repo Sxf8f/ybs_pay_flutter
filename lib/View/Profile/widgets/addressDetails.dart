@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/const/color_const.dart';
 import '../../../core/bloc/userBloc/userBloc.dart';
 import '../../../core/bloc/userBloc/userState.dart';
 import '../../../main.dart';
@@ -17,15 +16,16 @@ class addressDetails extends StatelessWidget {
     return BlocBuilder<UserBloc, UserState>(
       builder: (context, state) {
         final user = state is UserLoaded ? state.user : null;
+        final scheme = Theme.of(context).colorScheme;
     return Container(
       // color: Colors.grey.shade300,
       // height: MediaQuery.of(context).size.width*0.14,
       width: MediaQuery.of(context).size.width*0.9,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(scrWidth*0.01),
-        color: Colors.white,
+        color: scheme.surface,
         border: Border.all(
-          color: Colors.grey.shade300,
+          color: Theme.of(context).dividerColor,
         ),
         // boxShadow: [
         //   BoxShadow(
@@ -54,20 +54,25 @@ class addressDetails extends StatelessWidget {
                 children: [
                   Text('Address  ',style: TextStyle(
                       fontSize: scrWidth*0.034,
-                      fontWeight: FontWeight.w600
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),),
-                  Icon(Icons.home_work_outlined,size: 20,)
+                  Icon(
+                    Icons.home_work_outlined,
+                    size: 20,
+                    color: Theme.of(context).iconTheme.color,
+                  )
                 ],
               ),
             ),
-            Divider(color: Colors.grey.shade300,),
+            Divider(color: Theme.of(context).dividerColor,),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   "Address",
                   style: TextStyle(fontWeight: FontWeight.w500,
-                      color: Colors.black,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: MediaQuery.of(context).size.width*0.032),),
                 SizedBox(
                   // width: scrWidth*0.4,
@@ -77,7 +82,7 @@ class addressDetails extends StatelessWidget {
                         user?.address ?? 'Address',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
-                          color: Colors.black,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontSize: MediaQuery.of(context).size.width * 0.032,
                         ),
                       ),
@@ -95,7 +100,7 @@ class addressDetails extends StatelessWidget {
                   Text(
                     "Pin code",
                     style: TextStyle(fontWeight: FontWeight.w500,
-                        color: Colors.black,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                         fontSize: MediaQuery.of(context).size.width*0.032),),
                   SizedBox(
                     // width: scrWidth*0.4,
@@ -105,7 +110,7 @@ class addressDetails extends StatelessWidget {
                           user?.pincode ?? 'Pincode',
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: Colors.black,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                             fontSize: MediaQuery.of(context).size.width * 0.032,
                           ),
                         ),
@@ -124,7 +129,7 @@ class addressDetails extends StatelessWidget {
                   Text(
                     "City",
                     style: TextStyle(fontWeight: FontWeight.w500,
-                        color: Colors.black,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                         fontSize: MediaQuery.of(context).size.width*0.032),),
                   SizedBox(
                     // width: scrWidth*0.4,
@@ -134,7 +139,7 @@ class addressDetails extends StatelessWidget {
                           "N/A",
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: Colors.black,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                             fontSize: MediaQuery.of(context).size.width * 0.032,
                           ),
                         ),
@@ -153,7 +158,7 @@ class addressDetails extends StatelessWidget {
                   Text(
                     "State",
                     style: TextStyle(fontWeight: FontWeight.w500,
-                        color: Colors.black,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                         fontSize: MediaQuery.of(context).size.width*0.032),),
                   SizedBox(
                     // width: scrWidth*0.4,
@@ -163,7 +168,7 @@ class addressDetails extends StatelessWidget {
                           "N/A",
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: Colors.black,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                             fontSize: MediaQuery.of(context).size.width * 0.032,
                           ),
                         ),

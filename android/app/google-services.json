@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "562598863456",
+    "project_id": "ybspay-db78a",
+    "storage_bucket": "ybspay-db78a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:562598863456:android:ffb206a6c9eeab60755905",
+        "android_client_info": {
+          "package_name": "com.example.ybs_pay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSugvqfTSgEJcVmGCzMOJU1fD0IKNzKH0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,13 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ybs_pay/core/sharedPreference/removeUserData.dart';
 
 import '../../../core/const/color_const.dart';
 import '../../../core/services/logoutServices.dart';
 import '../../login/loginScreen.dart';
 import '../../../main.dart';
-import '../../../splashScreen.dart';
 
 class logoutButton extends StatefulWidget {
   const logoutButton({super.key});
@@ -23,8 +21,9 @@ class _logoutButtonState extends State<logoutButton> {
       barrierDismissible: false,
       context: context,
       builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: scheme.surface,
           title: Column(
             children: [
               Padding(
@@ -33,19 +32,21 @@ class _logoutButtonState extends State<logoutButton> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: scrWidth*0.04,
-                      fontWeight: FontWeight.w600
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),),
               ),
               Text("Do you really want to logout?",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: scrWidth*0.035,
-                    fontWeight: FontWeight.w500
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                 ),),
             ],
           ),
           content: SizedBox(
-            height: scrWidth*0.4,
+            height: scrWidth*0.25,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -57,23 +58,25 @@ class _logoutButtonState extends State<logoutButton> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
 
-                      InkWell(
-                        onTap: () async {
-                          Navigator.pop(context);
-                          // _logout(context);
-                          removeLoginData();
-                          // SharedPreferences prefs=await SharedPreferences.getInstance();
-                          // prefs.remove('keyLoggedIn');
-                          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => loginScreen()), (route) => false,);
+                      // InkWell(
+                      //   onTap: () async {
+                      //     Navigator.pop(context);
+                      //     // _logout(context);
+                      //     removeLoginData();
+                      //     // SharedPreferences prefs=await SharedPreferences.getInstance();
+                      //     // prefs.remove('keyLoggedIn');
+                      //     Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => loginScreen()), (route) => false,);
 
-                        },
-                        child: Text("LOGOUT FROM ALL DEVICE",
-                          style: TextStyle(
-                              color: colorConst.primaryColor3,
-                              fontSize: scrWidth*0.032,
-                              fontWeight: FontWeight.w600
-                          ),),
-                      ),
+                      //   },
+                      //   child: Text("LOGOUT FROM ALL DEVICE",
+                      //     style: TextStyle(
+                      //         color: colorConst.primaryColor3,
+                      //         fontSize: scrWidth*0.032,
+                      //         fontWeight: FontWeight.w600
+                      //     ),),
+                      // ),
+                      
+                      
                       InkWell(
                         onTap: () async {
                           Navigator.pop(context);
@@ -115,6 +118,8 @@ class _logoutButtonState extends State<logoutButton> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -135,13 +140,15 @@ class _logoutButtonState extends State<logoutButton> {
                   width: MediaQuery.of(context).size.width*0.9,
                   decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(scrWidth*0.02),
-                      color: Colors.white,
+                      color: scheme.surface,
                       border: Border.all(
-                        color: Colors.grey.shade300,
+                        color: Theme.of(context).dividerColor,
                       ),
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.grey.shade300,
+                            color: isDark
+                                ? Colors.black.withOpacity(0.25)
+                                : Colors.grey.shade300,
                             blurRadius: 2,
                             // blurStyle: BlurStyle.outer,
                             offset: Offset(3, 3),

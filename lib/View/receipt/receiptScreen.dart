@@ -1,15 +1,22 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../main.dart';
+import '../../core/const/assets_const.dart';
+import '../../core/bloc/appBloc/appBloc.dart';
+import '../../core/bloc/appBloc/appState.dart';
+import '../../core/bloc/appBloc/appEvent.dart';
 
 class receiptScreen extends StatefulWidget {
   final providernum;
   final provideroperator;
   final provideramount;
   final providertransid;
+  final providerliveid;
   final providerdate;
   final providerstatus;
 
@@ -19,6 +26,7 @@ class receiptScreen extends StatefulWidget {
     required this.provideroperator,
     required this.provideramount,
     required this.providertransid,
+    required this.providerliveid,
     required this.providerdate,
     required this.providerstatus,
   });
@@ -29,6 +37,17 @@ class receiptScreen extends StatefulWidget {
 
 class _receiptScreenState extends State<receiptScreen> {
   final ScreenshotController _screenshotController = ScreenshotController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch settings to get logo from API
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AppBloc>().add(FetchSettingsEvent());
+      }
+    });
+  }
 
   Future<void> _captureAndShare() async {
     final Uint8List? imageBytes = await _screenshotController.capture();
@@ -46,9 +65,18 @@ class _receiptScreenState extends State<receiptScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[300],
       appBar: AppBar(
-        title: const Text('Receipt'),
+        scrolledUnderElevation: 0,
+        leading: InkWell(
+          onTap: () {
+            Navigator.pop(context);
+          },
+          child: Icon(Icons.arrow_back_ios),
+        ),
+        title: Text('Receipt', style: TextStyle(fontSize: scrWidth * 0.04)),
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         centerTitle: true,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.share),
@@ -68,19 +96,54 @@ class _receiptScreenState extends State<receiptScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset("assets/images/icons/logo ybs.png", height: 35),
+                  BlocBuilder<AppBloc, AppState>(
+                    buildWhen: (previous, current) => current is AppLoaded,
+                    builder: (context, state) {
+                      String logoPath = "assets/images/icons/logo ybs.png";
+                      if (state is AppLoaded && state.settings?.logo != null) {
+                        logoPath =
+                            "${AssetsConst.apiBase}media/${state.settings!.logo!.image}";
+                      }
+                      return SizedBox(
+                        height: 35,
+                        child: logoPath.startsWith('http')
+                            ? Image.network(
+                                logoPath,
+                                height: 35,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    "assets/images/icons/logo ybs.png",
+                                    height: 35,
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                "assets/images/icons/logo ybs.png",
+                                height: 35,
+                              ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 10),
                   // const Divider(thickness: 1.5),
-                  const Text(
-                    'YBS PAY',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
+                  // const Text(
+                  //   'TRV PAY',
+                  //   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  // ),
                   SizedBox(height: 20),
                   _infoRow('Mobile Number:', widget.providernum),
                   _infoRow('Operator:', widget.provideroperator),
                   _infoRow('Amount:', widget.provideramount),
                   _infoRow('TXN Id:', widget.providertransid),
-                  _infoRow('Live Id:', 'N/A'),
+                  _infoRow(
+                    'Live Id:',
+                    (widget.providerliveid != null &&
+                            widget.providerliveid.toString().isNotEmpty &&
+                            widget.providerliveid.toString() != 'null')
+                        ? widget.providerliveid.toString()
+                        : 'N/A',
+                  ),
                   _infoRow('Date:', widget.providerdate),
 
                   Row(
@@ -117,7 +180,10 @@ class _receiptScreenState extends State<receiptScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w500,fontSize: 12)),
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+          ),
           Text(value, style: const TextStyle(fontSize: 12)),
         ],
       ),

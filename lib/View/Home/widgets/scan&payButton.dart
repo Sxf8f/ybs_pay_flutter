@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/const/color_const.dart';
+import '../../../main.dart';
 import '../../scanQr/scanqrScreen.dart';
 
-
-
 /// Constructor for the animated scan and pay button
-
 
 class ScanPayButton extends StatefulWidget {
   const ScanPayButton({super.key});
@@ -23,8 +21,18 @@ class _ScanPayButtonState extends State<ScanPayButton>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 3200),
+      duration: Duration(milliseconds: 2000),
     )..repeat(reverse: true);
+  }
+
+  double _getScale() {
+    // Gentle pulse: scales between 1.0 and 1.02 (2% increase)
+    return 1.0 + (_controller.value * 0.02);
+  }
+
+  double _getTranslateY() {
+    // Subtle vertical movement: moves between 0 and -2 pixels
+    return -(_controller.value * 2.0);
   }
 
   @override
@@ -39,8 +47,6 @@ class _ScanPayButtonState extends State<ScanPayButton>
       animation: _controller,
       builder: (_, __) {
         return GestureDetector(
-          // autofocus: false,
-          // hoverColor: Colors.transparent,
           onTap: () {
             Navigator.push(
               context,
@@ -48,42 +54,67 @@ class _ScanPayButtonState extends State<ScanPayButton>
             );
           },
           child: Padding(
-            padding: const EdgeInsets.only(top: 16, bottom: 24),
-            child: Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: Offset(0, 5),
+            padding: EdgeInsets.only(
+              top: scrWidth * 0.04,
+              bottom: scrWidth * 0.06,
+            ),
+            child: Transform.scale(
+              scale: _getScale(),
+              child: Transform.translate(
+                offset: Offset(0, _getTranslateY()),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        colorConst.primaryColor1,
+                        colorConst.primaryColor1.withOpacity(0.8),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorConst.primaryColor1.withOpacity(0.4),
+                        blurRadius: 15,
+                        offset: Offset(0, 8),
+                        spreadRadius: 0,
+                      ),
+                    ],
+                    borderRadius: BorderRadius.circular(scrWidth * 0.01),
                   ),
-                ],
-                borderRadius:
-                BorderRadius.circular(MediaQuery.of(context).size.width * 0.05),
-                gradient: LinearGradient(
-                  colors: [
-                    colorConst.lightBlue,
-                    Colors.white,
-                    colorConst.lightBlue
-                  ],
-                  stops: [
-                    (_controller.value - 0.3).clamp(0.0, 1.0),
-                    _controller.value.clamp(0.0, 1.0),
-                    (_controller.value + 0.3).clamp(0.0, 1.0),
-                  ],
-                  begin: Alignment.bottomLeft,
-                  end: Alignment.topRight,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                child: Column(
-                  children: [
-                    Icon(Icons.qr_code_scanner_outlined, color: Colors.black),
-                    SizedBox(height: 8),
-                    Text('Scan & Pay',
-                        style: TextStyle(fontSize: 11, color: Colors.black)),
-                  ],
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: scrWidth * 0.04,
+                      horizontal: scrWidth * 0.06,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(scrWidth * 0.02),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.qr_code_scanner_outlined,
+                            color: Colors.white,
+                            size: scrWidth * 0.05,
+                          ),
+                        ),
+                        SizedBox(width: scrWidth * 0.03),
+                        Text(
+                          'Scan & Pay',
+                          style: TextStyle(
+                            fontSize: scrWidth * 0.033,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

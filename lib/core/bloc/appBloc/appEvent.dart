@@ -14,3 +14,7 @@ class FetchBannersEvent extends AppEvent {
 class FetchSettingsEvent extends AppEvent {
   const FetchSettingsEvent();
 }
+
+class FetchNewsEvent extends AppEvent {
+  const FetchNewsEvent();
+}

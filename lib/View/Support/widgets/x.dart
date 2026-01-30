@@ -1,75 +1,124 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/const/color_const.dart';
 import '../../../main.dart';
-
 
 /// A twitter X container with X icon and X launching follow us button
 class twitterXBox extends StatelessWidget {
-  const twitterXBox({super.key});
+  final String url;
+
+  const twitterXBox({super.key, required this.url});
+
+  void _launchTwitterX() async {
+    try {
+      print('Attempting to launch Twitter/X: $url');
+      
+      String urlToLaunch = url.trim();
+      if (!urlToLaunch.startsWith('http://') && !urlToLaunch.startsWith('https://')) {
+        urlToLaunch = 'https://$urlToLaunch';
+      }
+      
+      final Uri twitterUri = Uri.parse(urlToLaunch);
+      print('Parsed URI: $twitterUri');
+      
+      // Launch directly without canLaunchUrl check
+      final launched = await launchUrl(
+        twitterUri,
+        mode: LaunchMode.externalApplication,
+      );
+      
+      if (!launched) {
+        print('Failed to launch Twitter/X URL');
+      } else {
+        print('Twitter/X launched successfully');
+      }
+    } catch (e) {
+      print('Error launching Twitter/X: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      // color: Colors.grey.shade300,
-      // height: MediaQuery.of(context).size.width*0.14,
-      width: MediaQuery.of(context).size.width*0.92,
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(scrWidth*0.015),
-          color: Colors.white,
-          // border: Border.all(
-          //   color: Colors.grey.shade300,
-          // ),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.grey.shade300,
-                blurRadius: 2,
-                // blurStyle: BlurStyle.outer,
-                offset: Offset(0, 0),
-                spreadRadius: 1
-
-            )
-          ]
-      ),
-      child: Padding(
-        padding: const EdgeInsets.only(left: 16,right: 16,top: 20,bottom: 20),
-        child: Column(
-          children: [
-            Row(
-              // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _launchTwitterX,
+        borderRadius: BorderRadius.circular(scrWidth * 0.01),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(scrWidth * 0.01),
+            border: Border.all(
+              color: Theme.of(context).dividerColor,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withOpacity(0.25)
+                    : Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(scrWidth * 0.04),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    SizedBox(
-                        height: 30,
-                        width: 30,
-                        child: SvgPicture.asset('assets/svg/x.svg')),
-                    Padding(
-                      padding: EdgeInsets.only(left: scrWidth*0.07),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('X',style: TextStyle(
-                              fontWeight: FontWeight.w500,fontSize: scrWidth*0.033),),
-                          Text('Follow Us',style: TextStyle(
-                              fontWeight: FontWeight.w500,fontSize: scrWidth*0.028,
-                              color: colorConst.primaryColor1,
-                              decoration: TextDecoration.underline,
-                              decorationColor: colorConst.primaryColor1
-                          ),),
-                        ],
-                      ),
+                Container(
+                  padding: EdgeInsets.all(scrWidth * 0.025),
+                  decoration: BoxDecoration(
+                    color: scheme.surface.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(scrWidth * 0.01),
+                  ),
+                  child: SizedBox(
+                    height: scrWidth * 0.04,
+                    width: scrWidth * 0.04,
+                    child: SvgPicture.asset(
+                      'assets/svg/x.svg',
+                      fit: BoxFit.contain,
                     ),
-                  ],
+                  ),
                 ),
-
-
-
+                SizedBox(width: scrWidth * 0.03),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'X (Twitter)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: scrWidth * 0.033,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                      SizedBox(height: scrWidth * 0.01),
+                      Text(
+                        'Follow Us',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: scrWidth * 0.028,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+                  size: scrWidth * 0.03,
+                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
