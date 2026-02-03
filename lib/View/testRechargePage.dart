@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:vibration/vibration.dart';
 import 'widgets/sweet_alert_dialog.dart';
 import 'package:ybs_pay/main.dart';
 import '../core/const/assets_const.dart';
@@ -49,6 +50,25 @@ class _RechargePageState extends State<RechargePage> {
 
   Map<String, TextEditingController> extraFieldControllers = {};
   bool isLoading = false; // Unified loading state for all operations
+
+  // Helper function for vibration feedback
+  Future<void> _triggerVibration({required bool isSuccess}) async {
+    try {
+      final hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator == true) {
+        if (isSuccess) {
+          // Success: Short, light vibration (100ms)
+          Vibration.vibrate(duration: 100);
+        } else {
+          // Error: Pattern vibration (wait 0ms, vibrate 200ms, wait 100ms, vibrate 200ms)
+          Vibration.vibrate(pattern: [0, 200, 100, 200]);
+        }
+      }
+    } catch (e) {
+      // Silently fail if vibration is not available or fails
+      print('⚠️ Vibration error: $e');
+    }
+  }
 
   // Helper functions for Sweet Alert dialogs
   Future<void> _showSuccessAlert(String message) async {
@@ -1639,6 +1659,9 @@ class _RechargePageState extends State<RechargePage> {
         final errorMsg = data['message'] ?? 'Payment failed';
         setState(() => isLoading = false);
 
+        // Vibration feedback for error
+        await _triggerVibration(isSuccess: false);
+
         // Check if secure key is required
         if (data['requires_secure_key'] == true) {
           _showErrorAlert(
@@ -1654,6 +1677,10 @@ class _RechargePageState extends State<RechargePage> {
       // Check for secure key errors in success response
       if (data['requires_secure_key'] == true) {
         setState(() => isLoading = false);
+        
+        // Vibration feedback for error
+        await _triggerVibration(isSuccess: false);
+        
         _showErrorAlert(
           data['message'] ?? 'Secure key is required for this transaction',
         );
@@ -1670,6 +1697,9 @@ class _RechargePageState extends State<RechargePage> {
         );
         print('   💬 Message: ${data['message'] ?? 'Recharge successful'}');
 
+        // Vibration feedback for success
+        await _triggerVibration(isSuccess: true);
+
         // Navigate to success screen with amount
         Navigator.pushReplacement(
           context,
@@ -1681,10 +1711,18 @@ class _RechargePageState extends State<RechargePage> {
         // Show error message from backend
         final errorMsg = data['message'] ?? 'Recharge failed';
         setState(() => isLoading = false);
+        
+        // Vibration feedback for error
+        await _triggerVibration(isSuccess: false);
+        
         _showErrorAlert(errorMsg);
       }
     } catch (e) {
       print("Error: $e");
+      
+      // Vibration feedback for error
+      await _triggerVibration(isSuccess: false);
+      
       _showErrorAlert("Error: $e");
     } finally {
       setState(() => isLoading = false);

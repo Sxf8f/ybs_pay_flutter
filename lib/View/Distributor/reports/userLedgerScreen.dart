@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
 import '../../../core/bloc/distributorBloc/distributorReportBloc.dart';
 import '../../../core/bloc/distributorBloc/distributorReportEvent.dart';
 import '../../../core/bloc/distributorBloc/distributorReportState.dart';
 import '../../../core/models/distributorModels/distributorReportModel.dart';
-import '../../../core/repository/distributorRepository/distributorRepo.dart';
 import '../../../core/const/color_const.dart';
+import '../../../core/const/assets_const.dart';
+import '../../../core/bloc/appBloc/appBloc.dart';
+import '../../../core/bloc/appBloc/appState.dart';
 import '../../../main.dart';
 import '../../widgets/app_bar.dart';
+import '../../widgets/snackBar.dart';
 
 class UserLedgerScreen extends StatefulWidget {
   const UserLedgerScreen({super.key});
@@ -19,7 +29,8 @@ class UserLedgerScreen extends StatefulWidget {
 class _UserLedgerScreenState extends State<UserLedgerScreen> {
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
-  final TextEditingController _transactionIdController = TextEditingController();
+  final TextEditingController _transactionIdController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -145,21 +156,58 @@ class _UserLedgerScreenState extends State<UserLedgerScreen> {
             ),
           ),
           SizedBox(height: scrWidth * 0.02),
-          ElevatedButton(
-            onPressed: () {
-              context.read<DistributorReportBloc>().add(
-                    FetchUserLedgerEvent(
-                      startDate: _startDateController.text.isNotEmpty ? _startDateController.text : null,
-                      endDate: _endDateController.text.isNotEmpty ? _endDateController.text : null,
-                      transactionId: _transactionIdController.text.isNotEmpty ? _transactionIdController.text : null,
-                    ),
-                  );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorConst.primaryColor1,
-              minimumSize: Size(double.infinity, scrWidth * 0.12),
-            ),
-            child: Text('Apply Filters', style: TextStyle(color: Colors.white)),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    context.read<DistributorReportBloc>().add(
+                      FetchUserLedgerEvent(
+                        startDate: _startDateController.text.isNotEmpty
+                            ? _startDateController.text
+                            : null,
+                        endDate: _endDateController.text.isNotEmpty
+                            ? _endDateController.text
+                            : null,
+                        transactionId: _transactionIdController.text.isNotEmpty
+                            ? _transactionIdController.text
+                            : null,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorConst.primaryColor1,
+                    minimumSize: Size(double.infinity, scrWidth * 0.12),
+                  ),
+                  child: Text(
+                    'Apply Filters',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+              SizedBox(width: scrWidth * 0.02),
+              BlocBuilder<DistributorReportBloc, DistributorReportState>(
+                builder: (context, state) {
+                  if (state is UserLedgerLoaded &&
+                      state.ledger.data.isNotEmpty) {
+                    return IconButton(
+                      icon: Icon(
+                        Icons.picture_as_pdf,
+                        color: colorConst.primaryColor1,
+                        size: 28,
+                      ),
+                      onPressed: () => _generateUserLedgerPDF(state.ledger),
+                      tooltip: 'Download PDF',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: EdgeInsets.all(12),
+                      ),
+                    );
+                  }
+                  return SizedBox.shrink();
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -192,7 +240,8 @@ class _UserLedgerScreenState extends State<UserLedgerScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (entry.description != null && entry.description!.isNotEmpty) ...[
+                    if (entry.description != null &&
+                        entry.description!.isNotEmpty) ...[
                       SizedBox(height: scrWidth * 0.01),
                       Text(
                         entry.description!,
@@ -216,7 +265,7 @@ class _UserLedgerScreenState extends State<UserLedgerScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '+₹${entry.credit.toStringAsFixed(2)}',
+                    '+${entry.credit.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
@@ -234,7 +283,7 @@ class _UserLedgerScreenState extends State<UserLedgerScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '-₹${entry.debited.toStringAsFixed(2)}',
+                    '-${entry.debited.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: Colors.red,
                       fontWeight: FontWeight.bold,
@@ -293,5 +342,255 @@ class _UserLedgerScreenState extends State<UserLedgerScreen> {
       ),
     );
   }
-}
 
+  Future<void> _generateUserLedgerPDF(UserLedgerResponse ledger) async {
+    try {
+      // Load logo
+      pw.ImageProvider? logoImage;
+      try {
+        final appState = context.read<AppBloc>().state;
+        String? logoUrl;
+        if (appState is AppLoaded && appState.settings?.logo != null) {
+          logoUrl =
+              "${AssetsConst.apiBase}media/${appState.settings!.logo!.image}";
+        }
+
+        if (logoUrl != null && logoUrl.startsWith('http')) {
+          final logoResponse = await http.get(Uri.parse(logoUrl));
+          if (logoResponse.statusCode == 200) {
+            final logoBytes = logoResponse.bodyBytes;
+            logoImage = pw.MemoryImage(logoBytes);
+          }
+        }
+      } catch (e) {
+        print('Error loading logo: $e');
+      }
+
+      final pdf = pw.Document();
+
+      // Calculate closing balance
+      double closingBalance = 0.0;
+      if (ledger.data.isNotEmpty) {
+        for (var entry in ledger.data) {
+          closingBalance += entry.credit - entry.debited;
+        }
+      }
+
+      // Get filter info
+      String filterInfo = 'No filters applied';
+      List<String> filters = [];
+      if (_startDateController.text.isNotEmpty) {
+        filters.add('Start Date: ${_startDateController.text}');
+      }
+      if (_endDateController.text.isNotEmpty) {
+        filters.add('End Date: ${_endDateController.text}');
+      }
+      if (_transactionIdController.text.isNotEmpty) {
+        filters.add('Transaction ID: ${_transactionIdController.text}');
+      }
+      if (filters.isNotEmpty) {
+        filterInfo = filters.join(' | ');
+      }
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              // Logo Header (Centered)
+              if (logoImage != null)
+                pw.Center(
+                  child: pw.Image(
+                    logoImage,
+                    height: 40,
+                    fit: pw.BoxFit.contain,
+                  ),
+                ),
+              if (logoImage != null) pw.SizedBox(height: 20),
+
+              // Title
+              pw.Center(
+                child: pw.Text(
+                  'User Ledger Statement',
+                  style: pw.TextStyle(
+                    fontSize: 22,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  filterInfo,
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+
+              // Summary
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildPDFStatBox(
+                    'Closing Balance',
+                    'Rs.${closingBalance.toStringAsFixed(2)}',
+                  ),
+                  _buildPDFStatBox(
+                    'Total Transactions',
+                    ledger.returnedCount.toString(),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+
+              // Table
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildPDFCell('Date & Time', isHeader: true),
+                      _buildPDFCell('Transaction ID', isHeader: true),
+                      _buildPDFCell('Description', isHeader: true),
+                      _buildPDFCell(
+                        'Credit',
+                        isHeader: true,
+                        align: pw.TextAlign.right,
+                      ),
+                      _buildPDFCell(
+                        'Debit',
+                        isHeader: true,
+                        align: pw.TextAlign.right,
+                      ),
+                      _buildPDFCell('User', isHeader: true),
+                    ],
+                  ),
+                  ...ledger.data.map((entry) {
+                    final displayDate = entry.dateTimeFormatted != null
+                        ? '${entry.dateTimeFormatted!.date} ${entry.dateTimeFormatted!.time}'
+                        : entry.dateTime;
+
+                    return pw.TableRow(
+                      children: [
+                        _buildPDFCell(displayDate, fontSize: 9),
+                        _buildPDFCell(
+                          entry.transactionId.length > 15
+                              ? '${entry.transactionId.substring(0, 15)}...'
+                              : entry.transactionId,
+                          fontSize: 8,
+                        ),
+                        _buildPDFCell(
+                          entry.description ?? '',
+                          fontSize: 9,
+                          maxLines: 2,
+                        ),
+                        _buildPDFCell(
+                          entry.credit > 0
+                              ? 'Rs.${entry.credit.toStringAsFixed(2)}'
+                              : '-',
+                          fontSize: 9,
+                          align: pw.TextAlign.right,
+                        ),
+                        _buildPDFCell(
+                          entry.debited > 0
+                              ? 'Rs.${entry.debited.toStringAsFixed(2)}'
+                              : '-',
+                          fontSize: 9,
+                          align: pw.TextAlign.right,
+                        ),
+                        _buildPDFCell(
+                          entry.user != null
+                              ? '${entry.user!.username}${entry.user!.phoneNumber != null ? ' (${entry.user!.phoneNumber})' : ''}'
+                              : '-',
+                          fontSize: 8,
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      // Save and share PDF
+      final bytes = await pdf.save();
+      final directory = await getTemporaryDirectory();
+      final file = File(
+        '${directory.path}/user_ledger_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+      await file.writeAsBytes(bytes);
+
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'User Ledger Statement');
+    } catch (e) {
+      showSnack(context, 'Error generating PDF: $e');
+    }
+  }
+
+  pw.Widget _buildPDFStatBox(String label, String value) {
+    return pw.Expanded(
+      child: pw.Container(
+        padding: pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.grey100,
+          border: pw.Border.all(color: PdfColors.grey400, width: 1),
+          borderRadius: pw.BorderRadius.circular(4),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              label,
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              value,
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildPDFCell(
+    String text, {
+    bool isHeader = false,
+    double fontSize = 10,
+    pw.TextAlign align = pw.TextAlign.left,
+    int maxLines = 1,
+  }) {
+    // Remove any INR symbols and replace with Rs
+    final sanitizedText = text.replaceAll('₹', 'Rs').replaceAll('Rs.', 'Rs.');
+    return pw.Padding(
+      padding: pw.EdgeInsets.all(8),
+      child: pw.Text(
+        sanitizedText,
+        style: pw.TextStyle(
+          fontSize: fontSize,
+          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: isHeader ? PdfColors.grey800 : PdfColors.black,
+        ),
+        textAlign: align,
+        maxLines: maxLines,
+      ),
+    );
+  }
+}

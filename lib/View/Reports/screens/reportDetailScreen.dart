@@ -671,6 +671,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 label: 'Showing',
                 value: '${response.transactions.length}',
               ),
+              IconButton(
+                icon: Icon(
+                  Icons.picture_as_pdf,
+                  color: colorConst.primaryColor1,
+                  size: 22,
+                ),
+                onPressed: () => _generateRechargePDF(response),
+                tooltip: 'Download PDF',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(),
+              ),
             ],
           ),
         ),
@@ -1688,256 +1699,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  Future<void> _generateLedgerPDF(
-    LedgerReportResponse response,
-    double openingBalance,
-    double closingBalance,
-  ) async {
-    try {
-      // Get logo from AppBloc
-      final appState = context.read<AppBloc>().state;
-      String? logoUrl;
-      if (appState is AppLoaded && appState.settings?.logo != null) {
-        logoUrl =
-            "${AssetsConst.apiBase}media/${appState.settings!.logo!.image}";
-      }
-
-      // Load logo image
-      pw.ImageProvider? logoImage;
-      if (logoUrl != null && logoUrl.startsWith('http')) {
-        try {
-          final logoResponse = await http.get(Uri.parse(logoUrl));
-          if (logoResponse.statusCode == 200) {
-            final logoBytes = logoResponse.bodyBytes;
-            final logoImageData = pw.MemoryImage(logoBytes);
-            logoImage = logoImageData;
-          }
-        } catch (e) {
-          print('Error loading logo: $e');
-        }
-      }
-
-      final pdf = pw.Document();
-
-      // Calculate opening balance
-      double calculatedOpeningBalance = 0.0;
-      double calculatedClosingBalance = 0.0;
-
-      if (response.data.isNotEmpty) {
-        final lastEntry = response.data.last;
-        calculatedOpeningBalance = lastEntry.balanceAfter - lastEntry.amount;
-        final firstEntry = response.data.first;
-        calculatedClosingBalance = firstEntry.balanceAfter;
-      }
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: pw.EdgeInsets.all(40),
-          build: (pw.Context context) {
-            return [
-              // Logo Header (Centered)
-              if (logoImage != null)
-                pw.Center(
-                  child: pw.Image(
-                    logoImage,
-                    height: 40,
-                    fit: pw.BoxFit.contain,
-                  ),
-                ),
-              if (logoImage != null) pw.SizedBox(height: 20),
-
-              // Title (Centered)
-              pw.Center(
-                child: pw.Text(
-                  'Account Statement',
-                  style: pw.TextStyle(
-                    fontSize: 22,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.black,
-                  ),
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Center(
-                child: pw.Text(
-                  'Period: ${_startDate != null ? _formatDate(_startDate!) : "N/A"} - ${_endDate != null ? _formatDate(_endDate!) : "N/A"}',
-                  style: pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Center(
-                child: pw.Text(
-                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
-                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
-                ),
-              ),
-              pw.SizedBox(height: 20),
-
-              // Summary (Professional - No Colors)
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildPDFBalanceBox(
-                    'Opening Balance',
-                    calculatedOpeningBalance,
-                  ),
-                  _buildPDFBalanceBox(
-                    'Closing Balance',
-                    calculatedClosingBalance,
-                  ),
-                  _buildPDFBalanceBox(
-                    'Total Transactions',
-                    response.returnedCount.toDouble(),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-
-              // Table Header
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
-                children: [
-                  pw.TableRow(
-                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
-                    children: [
-                      _buildPDFCell('Date & Time', isHeader: true),
-                      _buildPDFCell('Description', isHeader: true),
-                      _buildPDFCell('Transaction ID', isHeader: true),
-                      _buildPDFCell(
-                        'Amount',
-                        isHeader: true,
-                        align: pw.TextAlign.right,
-                      ),
-                      _buildPDFCell(
-                        'Balance',
-                        isHeader: true,
-                        align: pw.TextAlign.right,
-                      ),
-                    ],
-                  ),
-                  // Table Rows
-                  ...response.data.map((entry) {
-                    final isCredit =
-                        entry.transactionType.toLowerCase() == 'credit' ||
-                        entry.amount >= 0;
-                    final dateTimeFormatted = entry.dateTimeFormatted;
-                    final displayDate = dateTimeFormatted != null
-                        ? '${dateTimeFormatted['date'] ?? ''} ${dateTimeFormatted['time'] ?? ''}'
-                        : entry.dateTime;
-
-                    return pw.TableRow(
-                      children: [
-                        _buildPDFCell(displayDate, fontSize: 9),
-                        _buildPDFCell(
-                          entry.transactionName.isNotEmpty
-                              ? entry.transactionName
-                              : entry.description,
-                          fontSize: 9,
-                          maxLines: 2,
-                        ),
-                        _buildPDFCell(
-                          entry.transactionId.length > 15
-                              ? '${entry.transactionId.substring(0, 15)}...'
-                              : entry.transactionId,
-                          fontSize: 8,
-                        ),
-                        _buildPDFCell(
-                          isCredit
-                              ? '+Rs.${entry.amount.abs().toStringAsFixed(2)}'
-                              : '-Rs.${entry.amount.abs().toStringAsFixed(2)}',
-                          fontSize: 9,
-                          color: PdfColors.black,
-                          align: pw.TextAlign.right,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                        _buildPDFCell(
-                          'Rs.${entry.balanceAfter.toStringAsFixed(2)}',
-                          fontSize: 9,
-                          align: pw.TextAlign.right,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ],
-              ),
-            ];
-          },
-        ),
-      );
-
-      // Save and share PDF
-      final bytes = await pdf.save();
-      final directory = await getTemporaryDirectory();
-      final file = File(
-        '${directory.path}/ledger_statement_${DateTime.now().millisecondsSinceEpoch}.pdf',
-      );
-      await file.writeAsBytes(bytes);
-
-      await Share.shareXFiles([XFile(file.path)], text: 'Account Statement');
-    } catch (e) {
-      showSnack(context, 'Error generating PDF: $e');
-    }
-  }
-
-  pw.Widget _buildPDFBalanceBox(String label, double value) {
-    return pw.Expanded(
-      child: pw.Container(
-        padding: pw.EdgeInsets.all(12),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.grey100,
-          border: pw.Border.all(color: PdfColors.grey400, width: 1),
-          borderRadius: pw.BorderRadius.circular(4),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              label,
-              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Text(
-              label.contains('Transactions')
-                  ? value.toInt().toString()
-                  : 'Rs.${value.toStringAsFixed(2)}',
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.black,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  pw.Widget _buildPDFCell(
-    String text, {
-    bool isHeader = false,
-    double fontSize = 10,
-    PdfColor? color,
-    pw.TextAlign align = pw.TextAlign.left,
-    pw.FontWeight fontWeight = pw.FontWeight.normal,
-    int maxLines = 1,
-  }) {
-    return pw.Padding(
-      padding: pw.EdgeInsets.all(8),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: fontSize,
-          fontWeight: isHeader ? pw.FontWeight.bold : fontWeight,
-          color: color ?? (isHeader ? PdfColors.grey800 : PdfColors.black),
-        ),
-        textAlign: align,
-        maxLines: maxLines,
-      ),
-    );
-  }
-
   void _showTransactionDetailsDialog(LedgerTransaction entry, bool isCredit) {
     final dateTimeFormatted = entry.dateTimeFormatted;
     final displayDate = dateTimeFormatted != null
@@ -2280,6 +2041,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 icon: Icons.visibility,
                 label: 'Showing',
                 value: '${response.returnedCount}',
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.picture_as_pdf,
+                  color: colorConst.primaryColor1,
+                  size: 22,
+                ),
+                onPressed: () => _generateComplaintPDF(response),
+                tooltip: 'Download PDF',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(),
               ),
             ],
           ),
@@ -2674,6 +2446,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.picture_as_pdf,
+                      color: colorConst.primaryColor1,
+                      size: 22,
+                    ),
+                    onPressed: () => _generateFundDebitCreditPDF(response),
+                    tooltip: 'Download PDF',
+                    padding: EdgeInsets.all(8),
+                    constraints: BoxConstraints(),
                   ),
                 ],
               ),
@@ -3116,6 +2899,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 label: 'Showing',
                 value: '${response.returnedCount}',
               ),
+              IconButton(
+                icon: Icon(
+                  Icons.picture_as_pdf,
+                  color: colorConst.primaryColor1,
+                  size: 22,
+                ),
+                onPressed: () => _generateUserDaybookPDF(response),
+                tooltip: 'Download PDF',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(),
+              ),
             ],
           ),
         ),
@@ -3391,6 +3185,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 label: 'Showing',
                 value: '${response.returnedCount}',
               ),
+              IconButton(
+                icon: Icon(
+                  Icons.picture_as_pdf,
+                  color: colorConst.primaryColor1,
+                  size: 22,
+                ),
+                onPressed: () => _generateCommissionSlabPDF(response),
+                tooltip: 'Download PDF',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(),
+              ),
             ],
           ),
         ),
@@ -3645,6 +3450,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 icon: Icons.visibility,
                 label: 'Showing',
                 value: '${response.returnedCount}',
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.picture_as_pdf,
+                  color: colorConst.primaryColor1,
+                  size: 22,
+                ),
+                onPressed: () => _generateW2RPDF(response),
+                tooltip: 'Download PDF',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(),
               ),
             ],
           ),
@@ -4277,5 +4093,772 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         );
       },
     );
+  }
+
+  // ==================== PDF Generation Methods ====================
+
+  Future<pw.ImageProvider?> _loadLogoImage() async {
+    try {
+      final appState = context.read<AppBloc>().state;
+      String? logoUrl;
+      if (appState is AppLoaded && appState.settings?.logo != null) {
+        logoUrl =
+            "${AssetsConst.apiBase}media/${appState.settings!.logo!.image}";
+      }
+
+      if (logoUrl != null && logoUrl.startsWith('http')) {
+        try {
+          final logoResponse = await http.get(Uri.parse(logoUrl));
+          if (logoResponse.statusCode == 200) {
+            final logoBytes = logoResponse.bodyBytes;
+            return pw.MemoryImage(logoBytes);
+          }
+        } catch (e) {
+          print('Error loading logo: $e');
+        }
+      }
+    } catch (e) {
+      print('Error getting logo: $e');
+    }
+    return null;
+  }
+
+  String _getFilterInfo() {
+    List<String> filters = [];
+    if (_startDate != null) {
+      filters.add('Start Date: ${_formatDate(_startDate!)}');
+    }
+    if (_endDate != null) {
+      filters.add('End Date: ${_formatDate(_endDate!)}');
+    }
+    if (_searchController.text.isNotEmpty) {
+      filters.add('Search: ${_searchController.text}');
+    }
+    if (_limitController.text.isNotEmpty) {
+      filters.add('Limit: ${_limitController.text}');
+    }
+    return filters.isEmpty ? 'No filters applied' : filters.join(' | ');
+  }
+
+  Future<void> _generateRechargePDF(RechargeReportResponse response) async {
+    try {
+      final logoImage = await _loadLogoImage();
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              // Logo Header (Centered)
+              if (logoImage != null)
+                pw.Center(
+                  child: pw.Image(logoImage, height: 40, fit: pw.BoxFit.contain),
+                ),
+              if (logoImage != null) pw.SizedBox(height: 20),
+
+              // Title
+              pw.Center(
+                child: pw.Text(
+                  widget.reportName,
+                  style: pw.TextStyle(
+                    fontSize: 22,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  _getFilterInfo(),
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+
+              // Summary
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildPDFStatBox('Total', response.totalCount.toString()),
+                  _buildPDFStatBox('Showing', response.transactions.length.toString()),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+
+              // Table
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildPDFCell('Date & Time', isHeader: true),
+                      _buildPDFCell('Transaction ID', isHeader: true),
+                      _buildPDFCell('Amount', isHeader: true, align: pw.TextAlign.right),
+                      _buildPDFCell('Operator', isHeader: true),
+                      _buildPDFCell('Account', isHeader: true),
+                      _buildPDFCell('Status', isHeader: true),
+                    ],
+                  ),
+                  ...response.transactions.map((tx) {
+                    return pw.TableRow(
+                      children: [
+                        _buildPDFCell(tx.datetime, fontSize: 9),
+                        _buildPDFCell(tx.transactionId, fontSize: 8),
+                        _buildPDFCell('Rs.${tx.amount}', fontSize: 9, align: pw.TextAlign.right),
+                        _buildPDFCell(tx.operatorName, fontSize: 9),
+                        _buildPDFCell(tx.accountNo, fontSize: 9),
+                        _buildPDFCell(tx.statusName, fontSize: 9),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      await _saveAndSharePDF(pdf, 'recharge_report');
+    } catch (e) {
+      showSnack(context, 'Error generating PDF: $e');
+    }
+  }
+
+  Future<void> _generateLedgerPDF(
+    LedgerReportResponse response,
+    double openingBalance,
+    double closingBalance,
+  ) async {
+    try {
+      final logoImage = await _loadLogoImage();
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              // Logo Header
+              if (logoImage != null)
+                pw.Center(
+                  child: pw.Image(logoImage, height: 40, fit: pw.BoxFit.contain),
+                ),
+              if (logoImage != null) pw.SizedBox(height: 20),
+
+              // Title
+              pw.Center(
+                child: pw.Text(
+                  'Account Statement',
+                  style: pw.TextStyle(
+                    fontSize: 22,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  _getFilterInfo(),
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+
+              // Summary
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildPDFStatBox('Opening Balance', 'Rs.${openingBalance.toStringAsFixed(2)}'),
+                  _buildPDFStatBox('Closing Balance', 'Rs.${closingBalance.toStringAsFixed(2)}'),
+                  _buildPDFStatBox('Transactions', response.returnedCount.toString()),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+
+              // Table
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildPDFCell('Date & Time', isHeader: true),
+                      _buildPDFCell('Description', isHeader: true),
+                      _buildPDFCell('Transaction ID', isHeader: true),
+                      _buildPDFCell('Amount', isHeader: true, align: pw.TextAlign.right),
+                      _buildPDFCell('Balance', isHeader: true, align: pw.TextAlign.right),
+                    ],
+                  ),
+                  ...response.data.map((entry) {
+                    final isCredit = entry.transactionType.toLowerCase() == 'credit' || entry.amount >= 0;
+                    final dateTimeFormatted = entry.dateTimeFormatted;
+                    final displayDate = dateTimeFormatted != null
+                        ? '${dateTimeFormatted['date'] ?? ''} ${dateTimeFormatted['time'] ?? ''}'
+                        : entry.dateTime;
+
+                    return pw.TableRow(
+                      children: [
+                        _buildPDFCell(displayDate, fontSize: 9),
+                        _buildPDFCell(
+                          entry.transactionName.isNotEmpty ? entry.transactionName : entry.description,
+                          fontSize: 9,
+                          maxLines: 2,
+                        ),
+                        _buildPDFCell(entry.transactionId, fontSize: 8),
+                        _buildPDFCell(
+                          isCredit
+                              ? '+Rs.${entry.amount.abs().toStringAsFixed(2)}'
+                              : '-Rs.${entry.amount.abs().toStringAsFixed(2)}',
+                          fontSize: 9,
+                          align: pw.TextAlign.right,
+                        ),
+                        _buildPDFCell(
+                          'Rs.${entry.balanceAfter.toStringAsFixed(2)}',
+                          fontSize: 9,
+                          align: pw.TextAlign.right,
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      await _saveAndSharePDF(pdf, 'ledger_statement');
+    } catch (e) {
+      showSnack(context, 'Error generating PDF: $e');
+    }
+  }
+
+  Future<void> _generateComplaintPDF(ComplaintReportResponse response) async {
+    try {
+      final logoImage = await _loadLogoImage();
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              if (logoImage != null)
+                pw.Center(
+                  child: pw.Image(logoImage, height: 40, fit: pw.BoxFit.contain),
+                ),
+              if (logoImage != null) pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Text(
+                  widget.reportName,
+                  style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  _getFilterInfo(),
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildPDFStatBox('Total', response.count.toString()),
+                  _buildPDFStatBox('Showing', response.returnedCount.toString()),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildPDFCell('Transaction ID', isHeader: true),
+                      _buildPDFCell('Amount', isHeader: true, align: pw.TextAlign.right),
+                      _buildPDFCell('Operator', isHeader: true),
+                      _buildPDFCell('Account', isHeader: true),
+                      _buildPDFCell('Status', isHeader: true),
+                      _buildPDFCell('Refund Status', isHeader: true),
+                    ],
+                  ),
+                  ...response.data.map((complaint) {
+                    return pw.TableRow(
+                      children: [
+                        _buildPDFCell(complaint.transactionId, fontSize: 8),
+                        _buildPDFCell('Rs.${complaint.amount}', fontSize: 9, align: pw.TextAlign.right),
+                        _buildPDFCell(complaint.operator, fontSize: 9),
+                        _buildPDFCell(complaint.accountNo, fontSize: 9),
+                        _buildPDFCell(complaint.status, fontSize: 9),
+                        _buildPDFCell(complaint.refundStatusDisplay, fontSize: 9),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      await _saveAndSharePDF(pdf, 'complaint_report');
+    } catch (e) {
+      showSnack(context, 'Error generating PDF: $e');
+    }
+  }
+
+  Future<void> _generateFundDebitCreditPDF(FundDebitCreditReportResponse response) async {
+    try {
+      final logoImage = await _loadLogoImage();
+      final pdf = pw.Document();
+
+      double openingBalance = 0.0;
+      double closingBalance = 0.0;
+      if (response.data.isNotEmpty) {
+        final lastEntry = response.data.last;
+        openingBalance = lastEntry.balanceAfter - lastEntry.amount;
+        final firstEntry = response.data.first;
+        closingBalance = firstEntry.balanceAfter;
+      }
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              if (logoImage != null)
+                pw.Center(
+                  child: pw.Image(logoImage, height: 40, fit: pw.BoxFit.contain),
+                ),
+              if (logoImage != null) pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Text(
+                  'Fund Debit/Credit Statement',
+                  style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  _getFilterInfo(),
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildPDFStatBox('Opening Balance', 'Rs.${openingBalance.toStringAsFixed(2)}'),
+                  _buildPDFStatBox('Closing Balance', 'Rs.${closingBalance.toStringAsFixed(2)}'),
+                  _buildPDFStatBox('Transactions', response.returnedCount.toString()),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildPDFCell('Date & Time', isHeader: true),
+                      _buildPDFCell('Description', isHeader: true),
+                      _buildPDFCell('Transaction ID', isHeader: true),
+                      _buildPDFCell('Amount', isHeader: true, align: pw.TextAlign.right),
+                      _buildPDFCell('Balance', isHeader: true, align: pw.TextAlign.right),
+                    ],
+                  ),
+                  ...response.data.map((tx) {
+                    final isCredit = tx.transactionType.toLowerCase() == 'credit' || tx.amount >= 0;
+                    final displayDate = tx.datetime.isNotEmpty ? tx.datetime : tx.entryDate;
+
+                    return pw.TableRow(
+                      children: [
+                        _buildPDFCell(displayDate, fontSize: 9),
+                        _buildPDFCell(
+                          tx.transactionName.isNotEmpty ? tx.transactionName : tx.description,
+                          fontSize: 9,
+                          maxLines: 2,
+                        ),
+                        _buildPDFCell(tx.transactionId, fontSize: 8),
+                        _buildPDFCell(
+                          isCredit
+                              ? '+Rs.${tx.amount.abs().toStringAsFixed(2)}'
+                              : '-Rs.${tx.amount.abs().toStringAsFixed(2)}',
+                          fontSize: 9,
+                          align: pw.TextAlign.right,
+                        ),
+                        _buildPDFCell(
+                          'Rs.${tx.balanceAfter.toStringAsFixed(2)}',
+                          fontSize: 9,
+                          align: pw.TextAlign.right,
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      await _saveAndSharePDF(pdf, 'fund_debit_credit_statement');
+    } catch (e) {
+      showSnack(context, 'Error generating PDF: $e');
+    }
+  }
+
+  Future<void> _generateUserDaybookPDF(UserDaybookReportResponse response) async {
+    try {
+      final logoImage = await _loadLogoImage();
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              if (logoImage != null)
+                pw.Center(
+                  child: pw.Image(logoImage, height: 40, fit: pw.BoxFit.contain),
+                ),
+              if (logoImage != null) pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Text(
+                  widget.reportName,
+                  style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  _getFilterInfo(),
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildPDFStatBox('Total', response.count.toString()),
+                  _buildPDFStatBox('Showing', response.returnedCount.toString()),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildPDFCell('Date & Time', isHeader: true),
+                      _buildPDFCell('Operator', isHeader: true),
+                      _buildPDFCell('API', isHeader: true),
+                      _buildPDFCell('Total Amount', isHeader: true, align: pw.TextAlign.right),
+                      _buildPDFCell('Total Hits', isHeader: true, align: pw.TextAlign.right),
+                      _buildPDFCell('Success Hits', isHeader: true, align: pw.TextAlign.right),
+                      _buildPDFCell('Failed Hits', isHeader: true, align: pw.TextAlign.right),
+                    ],
+                  ),
+                  ...response.data.map((entry) {
+                    return pw.TableRow(
+                      children: [
+                        _buildPDFCell(entry.dateTime, fontSize: 9),
+                        _buildPDFCell(entry.operatorName, fontSize: 9),
+                        _buildPDFCell(entry.apiName, fontSize: 9),
+                        _buildPDFCell('Rs.${entry.totalAmount}', fontSize: 9, align: pw.TextAlign.right),
+                        _buildPDFCell(entry.totalHits.toString(), fontSize: 9, align: pw.TextAlign.right),
+                        _buildPDFCell(entry.successHits.toString(), fontSize: 9, align: pw.TextAlign.right),
+                        _buildPDFCell(entry.failedHits.toString(), fontSize: 9, align: pw.TextAlign.right),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      await _saveAndSharePDF(pdf, 'user_daybook_report');
+    } catch (e) {
+      showSnack(context, 'Error generating PDF: $e');
+    }
+  }
+
+  Future<void> _generateCommissionSlabPDF(CommissionSlabReportResponse response) async {
+    try {
+      final logoImage = await _loadLogoImage();
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              if (logoImage != null)
+                pw.Center(
+                  child: pw.Image(logoImage, height: 40, fit: pw.BoxFit.contain),
+                ),
+              if (logoImage != null) pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Text(
+                  widget.reportName,
+                  style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  _getFilterInfo(),
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildPDFStatBox('Total', response.count.toString()),
+                  _buildPDFStatBox('Showing', response.returnedCount.toString()),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildPDFCell('Operator', isHeader: true),
+                      _buildPDFCell('Type', isHeader: true),
+                      _buildPDFCell('Commission ID', isHeader: true),
+                      _buildPDFCell('Commission', isHeader: true, align: pw.TextAlign.right),
+                    ],
+                  ),
+                  ...response.data.map((slab) {
+                    return pw.TableRow(
+                      children: [
+                        _buildPDFCell(slab.operatorName, fontSize: 9),
+                        _buildPDFCell(slab.operatorType, fontSize: 9),
+                        _buildPDFCell(slab.commissionId.toString(), fontSize: 8),
+                        _buildPDFCell('Rs.${slab.rt}', fontSize: 9, align: pw.TextAlign.right),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      await _saveAndSharePDF(pdf, 'commission_slab_report');
+    } catch (e) {
+      showSnack(context, 'Error generating PDF: $e');
+    }
+  }
+
+  Future<void> _generateW2RPDF(W2RReportResponse response) async {
+    try {
+      final logoImage = await _loadLogoImage();
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              if (logoImage != null)
+                pw.Center(
+                  child: pw.Image(logoImage, height: 40, fit: pw.BoxFit.contain),
+                ),
+              if (logoImage != null) pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Text(
+                  widget.reportName,
+                  style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  _getFilterInfo(),
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Generated: ${DateFormat('dd MMM yyyy HH:mm:ss').format(DateTime.now())}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildPDFStatBox('Total', response.count.toString()),
+                  _buildPDFStatBox('Showing', response.returnedCount.toString()),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildPDFCell('Transaction ID', isHeader: true),
+                      _buildPDFCell('From Account', isHeader: true),
+                      _buildPDFCell('To Account', isHeader: true),
+                      _buildPDFCell('Status', isHeader: true),
+                      _buildPDFCell('Created At', isHeader: true),
+                    ],
+                  ),
+                  ...response.data.map((w2r) {
+                    return pw.TableRow(
+                      children: [
+                        _buildPDFCell(w2r.transactionId, fontSize: 8),
+                        _buildPDFCell(w2r.originalAccountNo, fontSize: 9),
+                        _buildPDFCell(w2r.rightAccountNo, fontSize: 9),
+                        _buildPDFCell(w2r.statusDisplay, fontSize: 9),
+                        _buildPDFCell(w2r.createdAt, fontSize: 9),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      await _saveAndSharePDF(pdf, 'w2r_report');
+    } catch (e) {
+      showSnack(context, 'Error generating PDF: $e');
+    }
+  }
+
+  // Helper methods for PDF
+  pw.Widget _buildPDFStatBox(String label, String value) {
+    return pw.Expanded(
+      child: pw.Container(
+        padding: pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.grey100,
+          border: pw.Border.all(color: PdfColors.grey400, width: 1),
+          borderRadius: pw.BorderRadius.circular(4),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              label,
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              value,
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildPDFCell(
+    String text, {
+    bool isHeader = false,
+    double fontSize = 10,
+    pw.TextAlign align = pw.TextAlign.left,
+    int maxLines = 1,
+  }) {
+    // Remove any INR symbols and replace with Rs
+    final sanitizedText = text.replaceAll('₹', 'Rs').replaceAll('Rs.', 'Rs.');
+    return pw.Padding(
+      padding: pw.EdgeInsets.all(8),
+      child: pw.Text(
+        sanitizedText,
+        style: pw.TextStyle(
+          fontSize: fontSize,
+          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: isHeader ? PdfColors.grey800 : PdfColors.black,
+        ),
+        textAlign: align,
+        maxLines: maxLines,
+      ),
+    );
+  }
+
+  Future<void> _saveAndSharePDF(pw.Document pdf, String fileName) async {
+    try {
+      final bytes = await pdf.save();
+      final directory = await getTemporaryDirectory();
+      final file = File(
+        '${directory.path}/${fileName}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(file.path)], text: widget.reportName);
+    } catch (e) {
+      showSnack(context, 'Error saving PDF: $e');
+    }
   }
 }

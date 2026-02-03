@@ -4,13 +4,15 @@ class AssetsConst {
 
   /// Path to the base url starting.
 
-    static const String apiBase = 'http://192.168.1.7:8001/';
+    // static const String apiBase = 'http://192.168.1.7:8001/';
 
   // static const String apiBase = 'http://192.168.1.48:8001/';
 
   // static const String apiBase = 'http://inst.apihub.co.in/';
 
-//   static const String apiBase = 'https://trvpay.com/';
+  static const String apiBase = 'http://trvpay.com/';
+  // static const String apiBase = 'http://skypromax.com/';
+  // static const String apiBase = 'http://mnp.apihub.co.in/';
 
   /// Helper method to build API URLs correctly, avoiding double slashes
   /// Usage: AssetsConst.buildApiUrl('api/android/banners/')

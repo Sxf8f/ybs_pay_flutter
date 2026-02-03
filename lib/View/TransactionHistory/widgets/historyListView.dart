@@ -524,7 +524,7 @@ class _rechargeHistoryListViewState extends State<rechargeHistoryListView> {
                                         operatorImagePath.startsWith('http')
                                         ? operatorImagePath
                                         : "${AssetsConst.apiBase}${operatorImagePath.startsWith('/') ? operatorImagePath.substring(1) : operatorImagePath}",
-                                    fit: BoxFit.contain,
+                                    fit: BoxFit.cover,
                                     placeholder: (context, url) => Container(
                                       color: Colors.grey[200],
                                       child: Center(
@@ -579,7 +579,7 @@ class _rechargeHistoryListViewState extends State<rechargeHistoryListView> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              transaction.phoneNumber,
+                              transaction.accountNo,
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: scrWidth * 0.025,

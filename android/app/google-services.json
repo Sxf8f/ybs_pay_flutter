@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "562598863456",
-    "project_id": "ybspay-db78a",
-    "storage_bucket": "ybspay-db78a.firebasestorage.app"
+    "project_number": "1074966384725",
+    "project_id": "skypromax",
+    "storage_bucket": "skypromax.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:562598863456:android:ffb206a6c9eeab60755905",
+        "mobilesdk_app_id": "1:1074966384725:android:a86af606226b2c84ce44dc",
         "android_client_info": {
           "package_name": "com.example.ybs_pay"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBSugvqfTSgEJcVmGCzMOJU1fD0IKNzKH0"
+          "current_key": "AIzaSyCIY8sSmX9SjXBUQQfRqBaBxdcfSBO4GfI"
         }
       ],
       "services": {

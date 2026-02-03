@@ -17,7 +17,9 @@ import 'core/bloc/notificationBloc/notificationBloc.dart';
 import 'core/bloc/notificationBloc/notificationEvent.dart';
 import 'core/auth/tokenManager.dart';
 import 'core/auth/tokenRefreshService.dart';
+import 'core/services/biometric_service.dart';
 import 'View/login/loginScreen.dart';
+import 'View/biometric/biometricLockScreen.dart';
 
 import 'main.dart';
 import 'navigationPage.dart';
@@ -79,6 +81,8 @@ class splashScreen extends StatefulWidget {
 class _splashScreenState extends State<splashScreen> {
   bool _hasInternet = true;
   bool _isCheckingConnection = true;
+  bool _biometricAuthenticated = false;
+  bool _shouldShowBiometric = false;
 
   Future<void> checkInternetConnection() async {
     try {
@@ -104,7 +108,8 @@ class _splashScreenState extends State<splashScreen> {
       if (_hasInternet) {
         // Fetch settings if internet is available
         context.read<AppBloc>().add(FetchSettingsEvent());
-        checkLoginStatus();
+        // Check if user is logged in before showing biometric
+        await _checkAndShowBiometric();
       } else {
         print('No internet connection - staying on splash screen');
       }
@@ -118,9 +123,42 @@ class _splashScreenState extends State<splashScreen> {
     }
   }
 
+  /// Check if user is logged in and show biometric authentication if needed
+  Future<void> _checkAndShowBiometric() async {
+    final token = await TokenManager.getAccessToken();
+
+    // Only show biometric if user is logged in
+    if (token != null && token.isNotEmpty) {
+      // Check if biometric is available
+      final isAvailable = await BiometricService.isAvailable();
+      print(
+        '🔐 Biometric check: token exists=${token.isNotEmpty}, biometric available=$isAvailable',
+      );
+
+      if (isAvailable) {
+        // Set state to show biometric lock screen
+        if (mounted) {
+          setState(() {
+            _shouldShowBiometric = true;
+          });
+        }
+        print('🔐 Showing biometric lock screen');
+        return;
+      } else {
+        print('🔐 Biometric not available, proceeding without biometric');
+      }
+    } else {
+      print('🔐 No token found, proceeding without biometric');
+    }
+
+    // If no token or biometric not available, proceed directly to login check
+    checkLoginStatus();
+  }
+
   Future<void> checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
+    // Use TokenManager to get token instead of direct SharedPreferences access
+    final token = await TokenManager.getAccessToken();
     final username = prefs.getString('username');
     final password = prefs.getString('login_password');
     final roleId = prefs.getInt('role_id');
@@ -150,58 +188,172 @@ class _splashScreenState extends State<splashScreen> {
     }
 
     if (token != null && token.isNotEmpty) {
-      print('Token found, validating...');
+      print('Token found, checking expiration and validating...');
+
+      // CRITICAL FIX: Check local expiration FIRST before server validation
+      // This prevents the bug where expired tokens are treated as valid
+      final isExpiredLocally = await TokenManager.isTokenExpired();
+
+      if (isExpiredLocally) {
+        print(
+          '⚠️ Token is expired locally. Attempting to refresh before validation...',
+        );
+
+        // Try refresh with retries (maxRetries=3 for more patience)
+        final refreshed = await TokenManager.refreshToken(maxRetries: 3);
+
+        if (!refreshed) {
+          // Double-check: maybe another process refreshed it
+          final stillExpired = await TokenManager.isTokenExpired();
+          if (stillExpired) {
+            // Check if we have a refresh token - if not, definitely need to login
+            final hasRefreshToken = await TokenManager.getRefreshToken();
+            if (hasRefreshToken == null || hasRefreshToken.isEmpty) {
+              print(
+                '❌ Token refresh failed. No refresh token available. Redirecting to login.',
+              );
+              await TokenManager.clearTokens();
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => loginScreen()),
+                );
+              }
+              return;
+            }
+
+            // We have a refresh token but refresh failed - could be temporary server issue
+            // Give it one more chance after a short wait
+            print(
+              '⚠️ Refresh failed but refresh token exists. Waiting 2 seconds and retrying once...',
+            );
+            await Future.delayed(Duration(seconds: 2));
+            final retryRefreshed = await TokenManager.refreshToken(
+              forceRefresh: true,
+              maxRetries: 1,
+            );
+
+            if (!retryRefreshed) {
+              final finalCheck = await TokenManager.isTokenExpired();
+              if (finalCheck) {
+                print(
+                  '❌ Token refresh failed after retry. Token is expired and cannot be refreshed. Redirecting to login.',
+                );
+                await TokenManager.clearTokens();
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => loginScreen()),
+                  );
+                }
+                return;
+              }
+            }
+          } else {
+            print('✅ Token was refreshed by another process. Proceeding...');
+          }
+        } else {
+          print(
+            '✅ Token refreshed successfully. Proceeding with validation...',
+          );
+        }
+      }
 
       // Validate the token using new TokenManager
       final validationResult = await TokenManager.validateToken();
 
       // If validation failed due to a server error (e.g. 500) and we didn't get
-      // a structured response, do NOT force logout. Assume the token is still
-      // usable (other authenticated APIs work) and continue to home.
+      // a structured response, check local expiration status
+      // If token is not expired locally and we have a refresh token, proceed
+      // Otherwise, redirect to login
       if (validationResult == null) {
         print(
-          'Token validation could not be completed (null response). Skipping strict validation and proceeding as logged-in.',
+          '⚠️ Token validation could not be completed (null response). Checking local expiration...',
         );
 
-        // Start token refresh service
-        TokenRefreshService.start();
+        // Double-check local expiration after failed validation
+        final stillExpired = await TokenManager.isTokenExpired();
+        final hasRefreshToken = await TokenManager.getRefreshToken();
 
-        try {
-          context.read<UserBloc>().add(FetchUserDetailsEvent());
-        } catch (_) {}
-        try {
+        if (stillExpired &&
+            (hasRefreshToken == null || hasRefreshToken.isEmpty)) {
           print(
-            '📰 [SPLASH] Dispatching FetchNewsEvent (validation null path)...',
+            '❌ Token is expired locally and no refresh token available. Redirecting to login.',
           );
-          context.read<AppBloc>().add(FetchNewsEvent());
-          print(
-            '📰 [SPLASH] FetchNewsEvent dispatched successfully (validation null path)',
-          );
-        } catch (e) {
-          print(
-            '⚠️ Error dispatching FetchNewsEvent (validation null path): $e',
-          );
+          await TokenManager.clearTokens();
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => loginScreen()),
+            );
+          }
+          return;
         }
-        try {
-          context.read<LayoutBloc>().add(FetchLayoutsEvent());
-        } catch (e) {
-          print(
-            '⚠️ Error dispatching FetchLayoutsEvent (validation null path): $e',
-          );
-        }
-        try {
-          context.read<NotificationBloc>().add(
-            const FetchNotificationStatsEvent(),
-          );
-        } catch (_) {}
 
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => navigationPage(initialIndex: 0)),
+        // If we have a refresh token and token is not expired locally,
+        // assume it's a network issue and proceed (token refresh service will handle it)
+        if (!stillExpired &&
+            hasRefreshToken != null &&
+            hasRefreshToken.isNotEmpty) {
+          print(
+            '✅ Token is not expired locally and refresh token exists. Proceeding (network issue assumed).',
           );
+
+          // Start token refresh service
+          TokenRefreshService.start();
+
+          try {
+            context.read<UserBloc>().add(FetchUserDetailsEvent());
+          } catch (_) {}
+          try {
+            print(
+              '📰 [SPLASH] Dispatching FetchNewsEvent (validation null path)...',
+            );
+            context.read<AppBloc>().add(FetchNewsEvent());
+            print(
+              '📰 [SPLASH] FetchNewsEvent dispatched successfully (validation null path)',
+            );
+          } catch (e) {
+            print(
+              '⚠️ Error dispatching FetchNewsEvent (validation null path): $e',
+            );
+          }
+          try {
+            context.read<LayoutBloc>().add(FetchLayoutsEvent());
+          } catch (e) {
+            print(
+              '⚠️ Error dispatching FetchLayoutsEvent (validation null path): $e',
+            );
+          }
+          try {
+            context.read<NotificationBloc>().add(
+              const FetchNotificationStatsEvent(),
+            );
+          } catch (_) {}
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => navigationPage(initialIndex: 0),
+              ),
+            );
+          }
+          return;
+        } else {
+          // Token is expired and we couldn't refresh, or no refresh token
+          print(
+            '❌ Cannot proceed: token expired and refresh failed. Redirecting to login.',
+          );
+          await TokenManager.clearTokens();
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => loginScreen()),
+            );
+          }
+          return;
         }
-        return;
       }
 
       final isValid = validationResult['is_valid'] == true;
@@ -379,6 +531,37 @@ class _splashScreenState extends State<splashScreen> {
   }
 
   Widget build(BuildContext context) {
+    // Show biometric lock screen if needed
+    if (_shouldShowBiometric && !_biometricAuthenticated) {
+      print('🔐 Rendering biometric lock screen');
+      return BiometricLockScreen(
+        onAuthenticated: () {
+          print('🔐 Biometric authentication successful');
+          setState(() {
+            _biometricAuthenticated = true;
+            _shouldShowBiometric = false;
+          });
+          // After biometric authentication, proceed with login check
+          checkLoginStatus();
+        },
+        onCancel: () {
+          print('🔐 Biometric authentication cancelled');
+          // If user cancels, logout
+          TokenManager.clearTokens();
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => loginScreen()),
+            );
+          }
+        },
+      );
+    }
+
+    return _buildSplashContent();
+  }
+
+  Widget _buildSplashContent() {
     return Scaffold(
       // backgroundColor: colorConst.primaryColor1,
       backgroundColor: colorConst.lightBlue,

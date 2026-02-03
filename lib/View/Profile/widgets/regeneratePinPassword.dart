@@ -85,7 +85,7 @@ class RegeneratePinPassword extends StatelessWidget {
                             ),
                             SizedBox(height: 12),
                             Text(
-                              "A new secure key will be generated and sent to your registered phone number via WhatsApp.",
+                              "A new secure key will be generated and sent to your registered phone number via SMS and email.",
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: scrWidth * 0.03,
@@ -187,54 +187,13 @@ class RegeneratePinPassword extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  response.message,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
+ 
+                if (!secureKeySent && newSecureKey != null) ...[
+                  // SizedBox(height: 20),
+                  Text('Your new secure key is sent to your registered phone number & email.',style: TextStyle(
                     fontSize: scrWidth * 0.032,
                     color: Colors.grey[700],
-                  ),
-                ),
-                if (!secureKeySent && newSecureKey != null) ...[
-                  SizedBox(height: 20),
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(scrWidth * 0.02),
-                      border: Border.all(color: Colors.blue[200]!),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          "Your new secure key:",
-                          style: TextStyle(
-                            fontSize: scrWidth * 0.03,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          newSecureKey,
-                          style: TextStyle(
-                            fontSize: scrWidth * 0.06,
-                            fontWeight: FontWeight.bold,
-                            color: colorConst.primaryColor1,
-                            letterSpacing: 4,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          "Please save this key securely",
-                          style: TextStyle(
-                            fontSize: scrWidth * 0.025,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  ),)
                 ],
                 if (response.warning != null) ...[
                   SizedBox(height: 16),
@@ -267,26 +226,7 @@ class RegeneratePinPassword extends StatelessWidget {
           ),
           actions: [
             if (!secureKeySent && newSecureKey != null)
-              TextButton(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: newSecureKey));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Secure key copied to clipboard'),
-                      backgroundColor: Colors.green,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                child: Text(
-                  "COPY",
-                  style: TextStyle(
-                    fontSize: scrWidth * 0.03,
-                    fontWeight: FontWeight.w600,
-                    color: colorConst.primaryColor1,
-                  ),
-                ),
-              ),
+  
             ElevatedButton(
               style: ButtonStyle(
                 elevation: WidgetStatePropertyAll(4),
